@@ -144,8 +144,30 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
   background:var(--accent);color:#000;padding:9px 18px;border-radius:2px;
   font-family:'DM Mono',monospace;font-size:11px;transition:transform .3s;z-index:999;pointer-events:none;}
 #toast.show{transform:translateX(-50%) translateY(0);}
+.expand-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:2px;cursor:pointer;letter-spacing:1px;margin-left:8px;transition:all .15s;flex-shrink:0;}
+.expand-btn:hover{border-color:var(--accent);color:var(--accent);}
+.expand-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(232,184,109,0.1);}
+.panel{transition:flex .25s ease;}
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* Help tooltip */
+.help-btn{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+  border-radius:50%;border:1px solid var(--muted);color:var(--muted);font-size:9px;
+  font-family:'DM Mono',monospace;cursor:pointer;flex-shrink:0;line-height:1;
+  vertical-align:middle;margin-left:4px;background:none;transition:all .15s;}
+.help-btn:hover{border-color:var(--accent);color:var(--accent);}
+.help-overlay{position:fixed;inset:0;z-index:500;display:flex;align-items:center;
+  justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);}
+.help-box{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+  max-width:420px;width:90%;padding:22px;position:relative;max-height:80vh;overflow-y:auto;}
+.help-box h3{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;
+  color:var(--accent);margin-bottom:10px;}
+.help-box p{font-size:12px;color:var(--text);line-height:1.7;margin-bottom:8px;}
+.help-box p:last-child{margin-bottom:0;}
+.help-close{position:absolute;top:12px;right:14px;background:none;border:none;
+  color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:0;}
+.help-close:hover{color:var(--accent);}
 </style>
 </head>
 <body>
@@ -159,7 +181,48 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
     <button class="btn primary" onclick="document.getElementById('fi').click()">⬆ Choose File</button>
     <input type="file" id="fi" accept="image/*" style="display:none">
   </div>
-  <p style="margin-top:16px;color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;">PANOSPLIT STUDIO · v6</p>
+  
+  <div style="max-width:640px;width:90%;margin-top:24px;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:22px;text-align:left;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;color:var(--accent);margin-bottom:16px;">Getting Started</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;">1 &middot; UPLOAD</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.65;">Upload a wide panorama photo. JPEG, PNG or TIFF. 8000px+ wide recommended for good print quality.</div>
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;">2 &middot; PICK A TEMPLATE</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.65;">Choose a layout (Even, Stair, Wide Mid, Pyramid, Sin Wave) and how many prints. Crops are arranged automatically.</div>
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;">3 &middot; SET PRINT SIZE</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.65;">Pick a standard print size (e.g. 10&times;20&quot;). Crop windows resize to match. Set the panorama canvas width to control DPI.</div>
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;">4 &middot; ADJUST CROPS</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.65;">Drag crops to reposition. Drag corners to resize. Use &ldquo;Shift All Selection&rdquo; to move the whole group together.</div>
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;">5 &middot; PREVIEW IN 3D</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.65;">The bottom panel shows a live 3D wall preview. Orbit with left-drag, pan with right-drag, zoom with scroll. Add furniture for scale.</div>
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:4px;">6 &middot; DOWNLOAD</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.65;">Click &ldquo;&#8659; Download Prints&rdquo; to save each panel as a full-resolution JPEG ready to send to your print lab.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.8;">
+      <strong style="color:var(--text);letter-spacing:1px;">SETTINGS QUICK REF</strong><br>
+      <strong style="color:var(--text);">Layout Mode</strong> &mdash; Templates auto-arrange; Free lets you place crops manually.<br>
+      <strong style="color:var(--text);">Default Print Size</strong> &mdash; Sets crop aspect ratio and physical output size.<br>
+      <strong style="color:var(--text);">Frame Style</strong> &mdash; Canvas / Wrap (image wraps around sides) / Float / Bare.<br>
+      <strong style="color:var(--text);">Depth</strong> &mdash; Frame thickness: 0.75&quot; thin &middot; 1.5&quot; standard &middot; 2&quot; deep gallery wrap.<br>
+      <strong style="color:var(--text);">Frame Mounting Height</strong> &mdash; Vertical position of prints on the wall in the 3D preview.<br>
+      <strong style="color:var(--text);">Grid</strong> &mdash; Overlay a foot/inch grid on the 3D wall to check real-world spacing.<br>
+      <strong style="color:var(--text);">Furniture</strong> &mdash; Add desk, sofa, lamp etc. to the 3D scene for scale reference.<br>
+      <strong style="color:var(--text);">? buttons</strong> &mdash; Click any ? in the sidebar for detailed help on that setting.
+    </div>
+  </div>
+<p style="margin-top:16px;color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;">PANOSPLIT STUDIO · v6</p>
 </div>
 
 <!-- App -->
@@ -170,6 +233,7 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
       <span id="img-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)"></span>
       <button class="btn" onclick="document.getElementById('fi').click()">⬆ New</button>
       <button class="btn secondary" onclick="downloadFrames()">⬇ Download</button>
+      <button id="unit-toggle" class="btn" onclick="toggleUnits()" style="border-color:var(--accent2);color:var(--accent2);min-width:68px;">IN / FT</button>
     </div>
   </header>
 
@@ -178,18 +242,18 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
     <div id="sidebar">
 
       <div>
-        <div class="sec">Layout Mode</div>
+        <div class="sec">Layout Mode <button class="help-btn" onclick="showHelp('layout-mode',event)">?</button></div>
         <div class="mtabs">
           <div class="mtab act" id="tab-t" onclick="setMode('template')">TEMPLATES</div>
           <div class="mtab" id="tab-f" onclick="setMode('free')">FREE</div>
         </div>
         <div id="tmpl-ui">
           <div class="field">
-            <label>Number of Prints</label>
+            <label>Number of Prints <button class="help-btn" onclick="showHelp('num-prints',event)">?</button></label>
             <input type="number" id="num-p" value="3" min="1" max="10" onchange="applyTemplate()">
           </div>
           <div class="field">
-            <label>Template</label>
+            <label>Template <button class="help-btn" onclick="showHelp('template',event)">?</button></label>
             <div class="tgrid">
               <div class="tbtn act" data-t="even"    onclick="pickT(this)">EVEN</div>
               <div class="tbtn"     data-t="stair"   onclick="pickT(this)">STAIR</div>
@@ -200,44 +264,55 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
             </div>
           </div>
           <div class="field">
-            <label>Default Print Size</label>
+            <label>Default Print Size <button class="help-btn" onclick="showHelp('print-size',event)">?</button></label>
+            <div style="display:flex;gap:5px;margin-bottom:5px;align-items:center;">
+              <label style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;">Standard sizes only</label>
+              <button id="std-sizes-btn" onclick="toggleStdSizes()" style="padding:2px 8px;font-size:9px;font-family:'DM Mono',monospace;background:var(--bg);border:1px solid var(--accent);color:var(--accent);border-radius:2px;cursor:pointer;">ON</button>
+            </div>
             <select id="print-size-sel" onchange="onPrintSizePreset(this.value)">
               <option value="custom">Custom</option>
               <optgroup label="Square">
-                <option value="8x8">8×8"</option>
-                <option value="10x10">10×10"</option>
-                <option value="12x12">12×12"</option>
-                <option value="16x16">16×16"</option>
-                <option value="20x20">20×20"</option>
+                <option value="8x8">8×8" — Large Square</option>
+                <option value="10x10">10×10" — Square</option>
+                <option value="12x12">12×12" — Large Square</option>
+                <option value="16x16">16×16" — XL Square</option>
+                <option value="20x20">20×20" — Poster Square</option>
               </optgroup>
-              <optgroup label="Landscape">
-                <option value="4x6">4×6"</option>
-                <option value="5x7">5×7"</option>
-                <option value="8x10">8×10"</option>
-                <option value="8x12">8×12"</option>
-                <option value="10x20" selected>10×20"</option>
-                <option value="12x18">12×18"</option>
-                <option value="12x24">12×24"</option>
-                <option value="16x20">16×20"</option>
-                <option value="16x24">16×24"</option>
-                <option value="20x24">20×24"</option>
-                <option value="20x30">20×30"</option>
-                <option value="24x36">24×36"</option>
+              <optgroup label="Landscape (standard)">
+                <option value="4x6">4×6" — 4R / 10×15cm</option>
+                <option value="5x7">5×7" — 5R / 13×18cm</option>
+                <option value="8x10">8×10" — 8R</option>
+                <option value="8x12">8×12" — A4 landscape</option>
+                <option value="10x20" selected>10×20" — Panoramic</option>
+                <option value="11x14">11×14" — 11R</option>
+                <option value="12x18">12×18" — A3 landscape</option>
+                <option value="12x24">12×24" — Panoramic</option>
+                <option value="16x20">16×20" — A2 landscape</option>
+                <option value="16x24">16×24" — Panoramic</option>
+                <option value="20x24">20×24" — Large</option>
+                <option value="20x30">20×30" — A1 landscape</option>
+                <option value="24x36">24×36" — A0 landscape</option>
               </optgroup>
-              <optgroup label="Portrait">
-                <option value="6x4">6×4"</option>
-                <option value="7x5">7×5"</option>
-                <option value="10x8">10×8"</option>
-                <option value="12x8">12×8"</option>
-                <option value="18x12">18×12"</option>
-                <option value="20x10">20×10"</option>
-                <option value="20x12">20×12"</option>
-                <option value="20x16">20×16"</option>
-                <option value="24x12">24×12"</option>
-                <option value="24x16">24×16"</option>
-                <option value="24x20">24×20"</option>
-                <option value="30x20">30×20"</option>
-                <option value="36x24">36×24"</option>
+              <optgroup label="Portrait (standard)">
+                <option value="6x4">6×4" — 4R portrait</option>
+                <option value="7x5">7×5" — 5R portrait</option>
+                <option value="10x8">10×8" — 8R portrait</option>
+                <option value="12x8">12×8" — A4 portrait</option>
+                <option value="14x11">14×11" — 11R portrait</option>
+                <option value="18x12">18×12" — A3 portrait</option>
+                <option value="20x16">20×16" — A2 portrait</option>
+                <option value="24x20">24×20" — Large portrait</option>
+                <option value="30x20">30×20" — A1 portrait</option>
+                <option value="36x24">36×24" — A0 portrait</option>
+              </optgroup>
+              <optgroup label="ISO (mm→in approx)">
+                <option value="4.1x5.8">4.1×5.8" — A6</option>
+                <option value="5.8x8.3">5.8×8.3" — A5</option>
+                <option value="8.3x11.7">8.3×11.7" — A4</option>
+                <option value="11.7x16.5">11.7×16.5" — A3</option>
+                <option value="16.5x23.4">16.5×23.4" — A2</option>
+                <option value="23.4x33.1">23.4×33.1" — A1</option>
+                <option value="33.1x46.8">33.1×46.8" — A0</option>
               </optgroup>
             </select>
           </div>
@@ -254,11 +329,11 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
             <input type="range" id="gap-r" min="0" max="12" value="1" step="0.25" oninput="onGap(this.value)">
           </div>
           <div class="field">
-            <label>Shift Horizontal (in) <span class="vd" id="cox-v">0"</span></label>
+            <label>Shift All Selection Horz (in) <span class="vd" id="cox-v">0"</span></label>
             <input type="range" id="cox-r" min="-120" max="120" value="0" step="0.5" oninput="onCropOffset('x',this.value)">
           </div>
           <div class="field">
-            <label>Shift Vertical (in) <span class="vd" id="coy-v">0"</span></label>
+            <label>Shift All Selection Vert (in) <span class="vd" id="coy-v">0"</span></label>
             <input type="range" id="coy-r" min="-60" max="60" value="0" step="0.5" oninput="onCropOffset('y',this.value)">
           </div>
         </div>
@@ -272,7 +347,7 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
       </div>
 
       <div>
-        <div class="sec">Panorama Canvas Scale</div>
+        <div class="sec">Panorama Canvas Scale <button class="help-btn" onclick="showHelp('canvas-scale',event)">?</button></div>
         <div class="field">
           <label>Total Width (in) <span class="vd" id="pcw-v">120"</span></label>
           <input type="range" id="pcw-r" min="12" max="600" value="120" step="1" oninput="onPanoCanvasW(this.value)">
@@ -300,7 +375,7 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
       </div>
 
       <div>
-        <div class="sec">Frame Style</div>
+        <div class="sec">Frame Style <button class="help-btn" onclick="showHelp('frame-style',event)">?</button></div>
         <div class="field">
           <div class="tg" id="ft-tg">
             <button class="tgb act"  onclick="setFT('canvas',this)">CANVAS</button>
@@ -314,7 +389,7 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
           <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.6;font-family:'DM Mono',monospace;">Orange border = wrap region.</div>
         </div>
         <div class="field">
-          <label>Depth (in) <span class="vd" id="depth-v">1.5"</span></label>
+          <label>Depth (in) <button class="help-btn" onclick="showHelp('depth',event)">?</button> <span class="vd" id="depth-v">1.5"</span></label>
           <input type="range" id="depth-r" min="0.25" max="4" step="0.25" value="1.5" oninput="onDepth(this.value)">
         </div>
         <div class="field">
@@ -343,21 +418,22 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
           </div>
         </div>
         <div class="field">
-          <label>Grid</label>
+          <label>Grid <button class="help-btn" onclick="showHelp('grid',event)">?</button></label>
           <div class="tg">
             <button class="tgb act" id="grid-off" onclick="setGrid('none',this)">OFF</button>
             <button class="tgb" id="grid-in" onclick="setGrid('inches',this)">INCHES</button>
-            <button class="tgb" id="grid-ft" onclick="setGrid('feet',this)">FEET</button>
+            <button class="tgb" id="grid-ft" onclick="setGrid('feet',this)">½ FOOT</button>
+            <button class="tgb" id="grid-tape" onclick="setGrid('tape',this)">TAPE</button>
           </div>
         </div>
         <div class="field">
-          <label>Global Y Offset (in) <span class="vd" id="voff-v">24"</span></label>
+          <label>Frame Mounting Height (in) <span class="vd" id="voff-v">24"</span> <button class="help-btn" onclick="showHelp('mounting-height',event)">?</button></label>
           <input type="range" id="voff-r" min="-40" max="40" step="0.5" value="24" oninput="onVOff(this.value)">
         </div>
       </div>
 
       <div>
-        <div class="sec">Furniture</div>
+        <div class="sec">Furniture <button class="help-btn" onclick="showHelp('furniture',event)">?</button></div>
         <div class="furn-grid">
           <div class="fbtn"     data-f="none"    onclick="setFurn('none',this)">— NONE —</div>
           <div class="fbtn" data-f="sofa"    onclick="setFurn('sofa',this)">🛋 SOFA</div>
@@ -388,9 +464,9 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
     <!-- Center: two panels -->
     <div id="center">
       <!-- Crop editor panel -->
-      <div class="panel" style="border-bottom:1px solid var(--border);">
+      <div class="panel" id="panel-editor" style="border-bottom:1px solid var(--border);">
         <div class="panel-top">
-          <span id="mode-lbl">📐 TEMPLATE MODE</span>
+          <span style="display:flex;align-items:center;gap:0;"><span id="mode-lbl">📐 TEMPLATE MODE</span><button class="expand-btn" id="expand-editor" onclick="expandPanel('editor')" title="Expand/restore this panel">⛶ EXPAND</button></span>
           <span style="display:flex;align-items:center;gap:6px;">
             <span id="cv-info" style="color:var(--accent);font-size:10px;"></span>
             <span style="color:var(--border)">│</span>
@@ -410,9 +486,9 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
         </div>
       </div>
       <!-- 3D preview panel -->
-      <div class="panel">
+      <div class="panel" id="panel-3d">
         <div class="panel-top">
-          <span>🎨 3D PREVIEW</span>
+          <span style="display:flex;align-items:center;gap:0;"><span>🎨 3D PREVIEW</span><button class="expand-btn" id="expand-3d" onclick="expandPanel('3d')" title="Expand/restore this panel">⛶ EXPAND</button></span>
           <span id="three-info" style="color:var(--accent2)">WebGL</span>
         </div>
         <div id="three-wrap">
@@ -423,12 +499,21 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
     </div>
   </div><!-- /workspace -->
 
-  <div id="statusbar">
+  <div id="dpi-warn" style="display:none;align-items:center;gap:8px;padding:5px 14px;background:rgba(232,100,60,0.12);border-top:1px solid rgba(232,100,60,0.4);font-family:'DM Mono',monospace;font-size:10px;color:#e8643c;"><span>⚠</span><span>DPI is below 200 — prints may appear soft. Reduce panorama canvas width or use smaller print sizes for sharper results.</span></div>
+<div id="statusbar">
     <span><span class="sdot"></span>Ready</span>
     <span id="st-res"></span><span id="st-n"></span><span id="st-dpi"></span>
   </div>
 </div><!-- /app -->
 
+
+<div id="help-overlay" style="display:none" class="help-overlay" onclick="if(event.target===this)closeHelp()">
+  <div class="help-box">
+    <button class="help-close" onclick="closeHelp()">&#215;</button>
+    <h3 id="help-title">Help</h3>
+    <div id="help-body"></div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -450,6 +535,8 @@ function panoCanvasH(){ return panoImg ? (panoImg.height/panoImg.width)*panoCanv
 var frameType='canvas', frameColor='#1a1a1a', wallColor='#d4cfc9';
 var wrapDepth=1.5, globalVOff=24, gridMode='none', furnType='desk', furnColor='#5a4a3a';
 var cropOffsetX=0, cropOffsetY=0; // shared offset for all crops in inches
+var useMetric=false; // false=imperial (inches/feet), true=metric (cm/mm)
+var standardSizesOnly=true; // restrict templates to standard paper sizes
 
 // ═══════════════════════════════════════════════
 // UPLOAD
@@ -480,7 +567,7 @@ function loadFile(file){
       initEditor();
       initThree();
       rebuildFurniture(); // must be after initThree() creates scene/furnGroup
-      applyTemplate();
+      applyPrintSizeToFrames(); // auto-fits panoCanvasW then calls applyTemplate
       updatePanoDPIInfo();
       syncShiftSliderRange();
     });
@@ -552,17 +639,19 @@ function applyTemplate(){
   var cY=Math.round((IH-cH)/2);
 
   if(activeTmpl==='even'){
-    for(var i=0;i<n;i++) mkF(i*(cW+g2), cY, cW, cH, i);
+    var totalW2=n*cW+(n-1)*g2;
+    var startX2=Math.round((IW-totalW2)/2);
+    for(var i=0;i<n;i++) mkF(startX2+i*(cW+g2), cY, cW, cH, i);
 
   } else if(activeTmpl==='stair'){
-    // Each print steps down and gets slightly shorter
-    var stepY=Math.round(IH*0.08); // vertical step between frames
+    var stepY=Math.round(IH*0.08);
     var maxH=cH, minH=Math.round(cH*0.65);
+    var startXst=Math.round((IW-(n*cW+(n-1)*g2))/2);
     for(var i=0;i<n;i++){
       var fh=Math.round(maxH - i*(maxH-minH)/Math.max(1,n-1));
       var fy=Math.round(i*stepY);
       if(fy+fh>IH) fy=IH-fh;
-      mkF(i*(cW+g2), fy, cW, fh, i);
+      mkF(startXst+i*(cW+g2), fy, cW, fh, i);
     }
 
   } else if(activeTmpl==='wide'){
@@ -570,8 +659,9 @@ function applyTemplate(){
     if(n===1){ mkF(0, cY, cW, cH, 0); }
     else{
       var mi=Math.floor(n/2);
-      var mW=Math.round(defaultPrintW*1.8*dpi); // wider center
-      var cx=0;
+      var mW=Math.round(defaultPrintW*1.8*dpi);
+      var totalWide=(n-1)*cW+mW+(n-1)*g2;
+      var cx=Math.round((IW-totalWide)/2);
       for(var i=0;i<n;i++){
         var fw2=(i===mi)?mW:cW;
         mkF(cx, cY, fw2, cH, i);
@@ -582,32 +672,32 @@ function applyTemplate(){
   } else if(activeTmpl==='tall'){
     // Middle print is full height; side prints are shorter and centered vertically
     var mi=Math.floor(n/2);
-    var sH=Math.round(cH*0.6); // side print height
-    var sY=Math.round((IH-sH)/2); // side print top
+    var sH=Math.round(cH*0.6);
+    var sY=Math.round((IH-sH)/2);
+    var startXtl=Math.round((IW-(n*cW+(n-1)*g2))/2);
     for(var i=0;i<n;i++){
-      if(i===mi) mkF(i*(cW+g2), cY, cW, cH, i);
-      else        mkF(i*(cW+g2), sY, cW, sH, i);
+      if(i===mi) mkF(startXtl+i*(cW+g2), cY, cW, cH, i);
+      else        mkF(startXtl+i*(cW+g2), sY, cW, sH, i);
     }
 
   } else if(activeTmpl==='pyramid'){
-    // Heights taper from tall center to short edges
+    var startXpy=Math.round((IW-(n*cW+(n-1)*g2))/2);
     for(var i=0;i<n;i++){
       var dist=Math.abs(i-(n-1)/2)/Math.max(1,(n-1)/2);
       var fh=Math.round(cH*(0.45+0.55*(1-dist)));
       var fy=Math.round((IH-fh)/2);
-      mkF(i*(cW+g2), fy, cW, fh, i);
+      mkF(startXpy+i*(cW+g2), fy, cW, fh, i);
     }
 
   } else if(activeTmpl==='strip'){
-    // Sin wave: prints arranged in a sine wave vertically
-    // Each print is standard size; Y position follows a sine curve
-    var amplitude=Math.round(IH*0.28); // peak-to-trough in pixels
-    var midY2=Math.round((IH-cH)/2);   // center baseline
+    var amplitude=Math.round(IH*0.28);
+    var midY2=Math.round((IH-cH)/2);
+    var startXsn=Math.round((IW-(n*cW+(n-1)*g2))/2);
     for(var i=0;i<n;i++){
-      var phase=(n<2)?0:(i/(n-1))*Math.PI*2; // full sine cycle across all prints
+      var phase=(n<2)?0:(i/(n-1))*Math.PI*2;
       var fy2=Math.round(midY2+amplitude*Math.sin(phase));
       fy2=Math.max(0,Math.min(IH-cH,fy2));
-      mkF(i*(cW+g2), fy2, cW, cH, i);
+      mkF(startXsn+i*(cW+g2), fy2, cW, cH, i);
     }
   }
   frames.forEach(function(f){clampF(f);}); autoWallPos(); selIdx=-1;
@@ -673,7 +763,11 @@ function onWY(idx,val){var f=frames[idx];if(!f)return;f.wallY=parseFloat(val);va
 function onWXn(idx,val){var f=frames[idx];if(!f)return;var v=parseFloat(val);if(isNaN(v))return;f.wallX=v;var r=document.getElementById('wx-r-'+idx);if(r)r.value=v.toFixed(1);rebuild3D();}
 function onWYn(idx,val){var f=frames[idx];if(!f)return;var v=parseFloat(val);if(isNaN(v))return;f.wallY=v;var r=document.getElementById('wy-r-'+idx);if(r)r.value=v.toFixed(1);rebuild3D();}
 function onDPI(v){/* DPI slider removed */}
-function onGap(v){gapInches=parseFloat(v);document.getElementById('gap-v').textContent=parseFloat(v).toFixed(2)+'"';if(layoutMode==='template') applyTemplate();}
+function onGap(v){
+  gapInches=parseFloat(v);
+  document.getElementById('gap-v').textContent=parseFloat(v).toFixed(2)+'"';
+  if(layoutMode==='template') applyPrintSizeToFrames(); // re-fits canvas to new gap
+}
 function onCropOffset(axis,v){
   var val=parseFloat(v);
   if(axis==='x'){cropOffsetX=val;document.getElementById('cox-v').textContent=val.toFixed(1)+'"';}
@@ -743,30 +837,50 @@ function onPrintSizePreset(val){
 function onCustomSize(){
   var w=parseFloat(document.getElementById('custom-w').value)||10;
   var h=parseFloat(document.getElementById('custom-h').value)||20;
+  if(w<=0||h<=0) return;
   defaultPrintW=w; defaultPrintH=h;
-  applyPrintSizeToFrames();
+  applyPrintSizeToFrames(); // auto-adjusts panoCanvasW to fit
 }
-// Apply the chosen print size to existing frames:
-// - Set printW, printH to the chosen physical size
-// - Recalc f.h (crop pixels) to match the new aspect ratio, keeping f.w unchanged
-// - This preserves the horizontal crop position/width, just adjusts the height
-// - DPI per frame = f.w / printW (computed naturally, no global dpiTarget needed)
+// When print size changes:
+//   Recompute panoCanvasW so n prints + gaps fit exactly in the panorama
+//   (makes crops as large as possible without overlapping or going out of bounds),
+//   then re-apply the template to lay everything out cleanly.
 function applyPrintSizeToFrames(){
-  if(!frames.length||!panoImg){ if(layoutMode==='template') applyTemplate(); return; }
-  var dpi=panoDPI();
-  frames.forEach(function(f){
-    f.printW=defaultPrintW;
-    f.printH=defaultPrintH;
-    // Recalc crop pixels from print inches * DPI, centered
-    var newW=Math.round(f.printW*dpi);
-    var newH=Math.round(f.printH*dpi);
-    var midX=f.x+f.w/2, midY=f.y+f.h/2;
-    f.w=newW; f.h=newH;
-    f.x=midX-newW/2; f.y=midY-newH/2;
-    clampF(f);
-  });
-  autoWallPos();
-  rebuildList(); renderEditor(); rebuild3D(); updateStatus();
+  if(!panoImg){ if(layoutMode==='template') applyTemplate(); return; }
+  var n=Math.max(1,parseInt(document.getElementById('num-p').value)||3);
+  // Total physical width needed for n prints + (n-1) gaps
+  var totalPhysW = n*defaultPrintW + (n-1)*gapInches;
+  // Total physical height needed
+  var totalPhysH = defaultPrintH;
+  // panoCanvasW must be >= totalPhysW (so prints fit horizontally)
+  // Also check height: panoCanvasW * (panoImg.height/panoImg.width) >= totalPhysH
+  //   => panoCanvasW >= totalPhysH * (panoImg.width/panoImg.height)
+  var minByWidth  = totalPhysW;
+  var minByHeight = totalPhysH * (panoImg.width / panoImg.height);
+  // Use the larger constraint so both width AND height fit
+  var newCanvasW  = Math.max(minByWidth, minByHeight);
+  // Round to 1 decimal, minimum 1"
+  newCanvasW = Math.max(1, Math.round(newCanvasW * 10) / 10);
+
+  // Update panoCanvasW and all associated UI
+  panoCanvasW = newCanvasW;
+  var ri = document.getElementById('pcw-r');
+  if(ri){ ri.max = Math.max(parseFloat(ri.max)||600, newCanvasW); ri.value = newCanvasW; }
+  var ni = document.getElementById('pcw-n'); if(ni) ni.value = newCanvasW.toFixed(1);
+  document.getElementById('pcw-v').textContent = newCanvasW.toFixed(0)+'"';
+  updatePanoDPIInfo(); syncShiftSliderRange();
+
+  // Now re-apply the template — mkF uses panoDPI() which is now correct,
+  // so crops will be sized and spaced to fit without overlap.
+  if(layoutMode==='template') applyTemplate();
+  else {
+    // In free mode: rescale existing crops to new DPI
+    frames.forEach(function(f){
+      f.printW=defaultPrintW; f.printH=defaultPrintH;
+      rescaleCropByDPI(f);
+    });
+    autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus();
+  }
 }
 function wrapPxVal(){ return Math.round(wrapDepth*panoDPI()); }
 function outerCrop(f){
@@ -892,11 +1006,21 @@ function edMove(e){
       if(cn==='tl'){nx+=dx;ny+=dy;nw-=dx;nh-=dy;}else if(cn==='tr'){nw+=dx;ny+=dy;nh-=dy;}
       else if(cn==='bl'){nx+=dx;nw-=dx;nh+=dy;}else if(cn==='br'){nw+=dx;nh+=dy;}
       if(nw>10){f.x=nx;f.w=nw;} if(nh>10){f.y=ny;f.h=nh;}
-      // Scale print inches proportionally to how much the crop changed (don't use px/DPI which is wrong)
+      // Scale print inches proportionally to how much the crop changed
       var scaleW = (dragSt.ow>0) ? f.w/dragSt.ow : 1;
       var scaleH = (dragSt.oh>0) ? f.h/dragSt.oh : 1;
       f.printW = Math.max(0.5, dragSt.origPrintW * scaleW);
       f.printH = Math.max(0.5, dragSt.origPrintH * scaleH);
+      // Snap to nearest standard size if enabled
+      if(standardSizesOnly){
+        var snapped=snapToStdSize(f.printW, f.printH);
+        f.printW=snapped[0]; f.printH=snapped[1];
+        // Recompute crop pixels from snapped physical size
+        var dpi=panoDPI();
+        var cx2=f.x+f.w/2, cy2=f.y+f.h/2;
+        f.w=Math.round(f.printW*dpi); f.h=Math.round(f.printH*dpi);
+        f.x=cx2-f.w/2; f.y=cy2-f.h/2;
+      }
       clampF(f); rebuildList();
     }
     renderEditor(); rebuild3D(); return;
@@ -978,10 +1102,10 @@ function rebuildList(){
         '<div class="fi-top"><div class="fi-dot" style="background:'+f.color+'"></div>'+
         '<span class="fi-name">Print #'+(idx+1)+'</span><span class="fi-px">'+Math.round(f.w)+'×'+Math.round(f.h)+'px · '+dpi+'dpi</span></div>'+
         '<div class="fi-g2">'+
-          '<div><label>W (in)</label><input type="number" value="'+f.printW.toFixed(1)+'" min="0.5" max="200" step="0.5" onchange="onInchChange('+idx+',\'w\',this.value)" onclick="event.stopPropagation()"></div>'+
-          '<div><label>H (in)</label><input type="number" value="'+f.printH.toFixed(1)+'" min="0.5" max="200" step="0.5" onchange="onInchChange('+idx+',\'h\',this.value)" onclick="event.stopPropagation()"></div>'+
+          '<div><label>W ('+unitLabel()+')</label><input type="number" value="'+dispVal(f.printW)+'" min="0.5" max="200" step="0.5" onchange="onInchChange('+idx+',\'w\',toInches(this.value))" onclick="event.stopPropagation()"></div>'+
+          '<div><label>H ('+unitLabel()+')</label><input type="number" value="'+dispVal(f.printH)+'" min="0.5" max="200" step="0.5" onchange="onInchChange('+idx+',\'h\',toInches(this.value))" onclick="event.stopPropagation()"></div>'+
         '</div>'+
-        '<div class="fi-section">WALL POSITION (inches from center)</div>'+
+        '<div class="fi-section">WALL POSITION ('+unitLabel()+' from center)</div>'+
         '<div class="wall-row">'+
           '<span class="wall-lbl">X</span>'+
           '<input type="range" class="wall-range" id="wx-r-'+idx+'" min="-'+WR+'" max="'+WR+'" step="0.5" value="'+f.wallX.toFixed(1)+'" oninput="onWX('+idx+',this.value)" onclick="event.stopPropagation()">'+
@@ -1001,7 +1125,15 @@ function updateStatus(){
   if(!panoImg) return;
   document.getElementById('st-res').textContent=panoImg.width+'×'+panoImg.height+'px';
   document.getElementById('st-n').textContent=frames.length+' print'+(frames.length!==1?'s':'');
-  if(frames[0]){var avgDpi=Math.round(frames.reduce(function(a,f){return a+f.w/f.printW;},0)/frames.length);document.getElementById('st-dpi').textContent='avg '+avgDpi+' DPI';}
+  if(frames[0]){
+    var avgDpi=Math.round(frames.reduce(function(a,f){return a+f.w/Math.max(0.01,f.printW);},0)/frames.length);
+    var dpiLabel='~'+avgDpi+' DPI';
+    var warn=document.getElementById('dpi-warn');
+    if(avgDpi<150){dpiLabel+=' ⚠ LOW';if(warn)warn.style.display='flex';}
+    else if(avgDpi<200){dpiLabel+=' ⚠';if(warn)warn.style.display='flex';}
+    else{if(warn)warn.style.display='none';}
+    document.getElementById('st-dpi').textContent=dpiLabel;
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1104,47 +1236,278 @@ function rebuildGrid(){
   while(gridGroup.children.length) gridGroup.remove(gridGroup.children[0]);
   if(gridMode==='none') return;
 
-  // Grid dimensions: 240" (20ft) each way
-  var halfInchW=120, halfInchH=80; // half-extents in inches
+  // TAPE mode: measuring tape along perimeter of combined print group
+  if(gridMode==='tape'){
+    buildTapeGrid();
+    return;
+  }
+
+  // Grid dimensions: 240" each way in inches
+  var halfInchW=120, halfInchH=80;
   var wY=2, z=-0.19;
 
-  // Step sizes in inches (use integers to avoid float drift)
-  // FEET mode:  major = 12" (1 ft),  minor = 6" (half foot)
-  // INCHES mode: major = 12" (1 ft), minor = 1" (one inch)
-  var isIn=(gridMode==='inches');
-  var majorIn=12;                   // major lines every 12" in both modes
-  var minorIn=isIn?1:6;             // minor: 1" or 6" between major
+  // INCHES mode: major every 12", minor every 1"
+  // HALF-FOOT mode (labeled "feet"): major every 12", minor every 6"
+  var majorIn=12;
+  var minorIn=(gridMode==='inches')?1:6;
 
   function lines(pts,col,op){
     var geo=new THREE.BufferGeometry(),v=[];
     for(var i=0;i<pts.length;i+=2){
-      // pts are in inches; convert to world units. Y offset by wY (wall center).
-      v.push(pts[i][0]*INCH3D,   wY+pts[i][1]*INCH3D,   z,
+      v.push(pts[i][0]*INCH3D, wY+pts[i][1]*INCH3D, z,
              pts[i+1][0]*INCH3D, wY+pts[i+1][1]*INCH3D, z);
     }
     geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v),3));
     gridGroup.add(new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:col,opacity:op,transparent:true})));
   }
 
-  var minorPts=[], majorPts=[], feetPts=[];
-  // Vertical lines (X axis)
+  var minorPts=[], majorPts=[];
   for(var ix=-halfInchW;ix<=halfInchW;ix+=minorIn){
-    var isMaj=(ix%majorIn===0);
-    var isFt=(ix%12===0);
-    var x=ix; // inches
-    if(isMaj) majorPts.push([x,-halfInchH],[x,halfInchH]);
-    else minorPts.push([x,-halfInchH],[x,halfInchH]);
+    if(ix%majorIn===0) majorPts.push([ix,-halfInchH],[ix,halfInchH]);
+    else minorPts.push([ix,-halfInchH],[ix,halfInchH]);
   }
-  // Horizontal lines (Y axis)
   for(var iy=-halfInchH;iy<=halfInchH;iy+=minorIn){
-    var isMaj=(iy%majorIn===0);
-    if(isMaj) majorPts.push([-halfInchW,iy],[halfInchW,iy]);
+    if(iy%majorIn===0) majorPts.push([-halfInchW,iy],[halfInchW,iy]);
     else minorPts.push([-halfInchW,iy],[halfInchW,iy]);
   }
   if(minorPts.length) lines(minorPts,0x666666,0.15);
   if(majorPts.length) lines(majorPts,0x999999,0.40);
-  // Center cross brighter
   lines([[0,-halfInchH],[0,halfInchH],[-halfInchW,0],[halfInchW,0]],0xbbbbbb,0.55);
+}
+
+// TAPE GRID: measuring tape marks along the perimeter of the combined print group
+// Shows tick marks + labels at every 6" along top and left edges
+// Compute luminance of wallColor to pick contrasting tape color
+function tapeColor(){
+  var col=wallColor.replace('#','');
+  if(col.length===3) col=col[0]+col[0]+col[1]+col[1]+col[2]+col[2];
+  var r=parseInt(col.slice(0,2),16)/255;
+  var g=parseInt(col.slice(2,4),16)/255;
+  var b=parseInt(col.slice(4,6),16)/255;
+  var lum=0.2126*r+0.7152*g+0.0722*b; // relative luminance
+  // High luminance wall = dark tape; low luminance wall = bright tape
+  if(lum>0.6) return {line:0x111111, text:'#111111', bg:'rgba(255,255,255,0.88)', textCol:'#111111'};
+  if(lum>0.35) return {line:0x222222, text:'#111111', bg:'rgba(240,240,240,0.88)', textCol:'#111111'};
+  return {line:0xffffff, text:'#ffffff', bg:'rgba(10,10,18,0.88)', textCol:'#f0f0f0'};
+}
+
+function buildTapeGrid(){
+  if(!frames.length||!pmeshes.length) return;
+
+  var I=INCH3D; // 0.1 world units per inch
+  var tc=tapeColor();
+  var lc=tc.line;
+  var bz=-0.18;
+  var floorY=-4; // world Y of floor
+
+  // ── Sort frames L→R, build geometry boxes ──
+  var sorted=frames.slice().sort(function(a,b){return a.wallX-b.wallX;});
+  var n=sorted.length;
+  var FB=sorted.map(function(f){
+    var wx=f.wallX*I, wy=(f.wallY+globalVOff)*I;
+    var hw=f.printW*I/2, hh=f.printH*I/2;
+    return {l:wx-hw, r:wx+hw, b:wy-hh, t:wy+hh,
+            cx:wx, cy:wy, pw:f.printW, ph:f.printH, wallX:f.wallX};
+  });
+
+  var allL=FB[0].l, allR=FB[n-1].r;
+  var allB=FB.reduce(function(a,b){return Math.min(a,b.b);},Infinity);
+  var allT=FB.reduce(function(a,b){return Math.max(a,b.t);},-Infinity);
+  var totalW=allR-allL; // world units
+  var totalH=allT-allB;
+
+  // ── Scale: one label row = LH world units ──
+  // Base label height on the avg print width so it scales with content
+  var avgPW=sorted.reduce(function(a,f){return a+f.printW;},0)/n;
+  var LH=avgPW*I*0.12; // label row height in world units (~12% of print width)
+  LH=Math.max(LH, 0.06); // minimum 0.6 inches apparent
+  var TICK=LH*0.5;
+
+  // ── LANES (no-overlap zones) ──
+  // Above allT:
+  var A_NAIL = allT + LH*0.4;  // nail dots live at frame top
+  var A_WLBL = allT + LH*1.2;  // per-frame width label row
+  var A_HLBL = allT + LH*2.4;  // per-frame height label row
+  var A_XLBL = allT + LH*3.6;  // per-frame x-offset label row
+  var A_DIMLN= allT + LH*5.0;  // total width dim line
+  var A_DLBL = allT + LH*6.2;  // total width dim label
+  var A_CL   = allT + LH*7.2;  // CL label
+
+  // Below allB:
+  var B_DIMLN= allB - LH*1.4;  // gap dim lines
+  var B_GLBL = allB - LH*2.6;  // gap labels
+
+  // Right of allR (stacked outward):
+  // Right side: each column is 3*LH wide (line + label gap)
+  // Col 0 = height dim lines, Col 1 = floor-to-nail
+  var COLW   = LH*5.0;         // width per column
+  var R_H0   = allR + LH*1.0;  // tallest frame height dim line X
+  var R_H0L  = allR + LH*2.2;  // label for tallest height
+  var R_FLOOR= allR + COLW + LH*1.0;  // floor-to-nail dim line X
+  var R_FLLBL= allR + COLW + LH*2.2;  // floor label X
+
+  // Left of allL:
+  var L_HDM  = allL - LH*2.0;  // left-side total height dim line
+  var L_HLBL = allL - LH*3.4;  // height label X
+
+  // ── Helpers ──
+  function inStr(v){
+    if(useMetric) return Math.round(v*2.54)+'cm';
+    return (v%1<0.05&&v%1>-0.05)? Math.round(v)+'"' : v.toFixed(1)+'"';
+  }
+  function signStr(v){
+    if(useMetric){ var c=Math.round(v*2.54); return (c>=0?'+':'')+c+'cm'; }
+    return (v>=0?'+':'')+v.toFixed(1)+'"';
+  }
+
+  function addLine(pts,color,opacity){
+    var geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pts),3));
+    gridGroup.add(new THREE.LineSegments(geo,
+      new THREE.LineBasicMaterial({color:color,opacity:opacity,transparent:true})));
+  }
+
+  // Dimension line: a line with perpendicular ticks at each end
+  function addDimLine(x0,y0,x1,y1){
+    var dx=x1-x0, dy=y1-y0, len=Math.sqrt(dx*dx+dy*dy)||1;
+    var nx=-dy/len*TICK, ny=dx/len*TICK;
+    addLine([x0,y0,bz, x1,y1,bz,
+             x0+nx,y0+ny,bz, x0-nx,y0-ny,bz,
+             x1+nx,y1+ny,bz, x1-nx,y1-ny,bz], lc, 0.85);
+  }
+
+  // Sprite label: outlined text canvas, centered at (wx,wy)
+  // LH is our label-height in world units — sprite height = LH
+  function addLabel(text, wx, wy){
+    var fs=24;
+    var cvTmp=document.createElement('canvas');
+    var ctxTmp=cvTmp.getContext('2d');
+    ctxTmp.font='bold '+fs+'px monospace';
+    var tw=Math.ceil(ctxTmp.measureText(text).width)+2;
+    var th=fs+8;
+    var cv=document.createElement('canvas');
+    cv.width=tw; cv.height=th;
+    var ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,tw,th);
+    ctx.font='bold '+fs+'px monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    // Thick outline for contrast against any background
+    ctx.strokeStyle=(lc===0xffffff)?'rgba(0,0,0,0.95)':'rgba(255,255,255,0.95)';
+    ctx.lineWidth=5; ctx.lineJoin='round';
+    ctx.strokeText(text, tw/2, th/2);
+    // Fill
+    ctx.fillStyle=(lc===0xffffff)?'#ffffff':'#111111';
+    ctx.fillText(text, tw/2, th/2);
+    var tex=new THREE.CanvasTexture(cv);
+    tex.needsUpdate=true;
+    var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+    sp.renderOrder=20;
+    // Height = LH, width proportional to canvas aspect
+    sp.scale.set(LH*(tw/th), LH, 1);
+    sp.position.set(wx, wy, bz+0.08);
+    gridGroup.add(sp);
+  }
+
+  // ── 1. Faint bounding box ──
+  addLine([allL,allB,bz, allR,allB,bz,
+           allR,allB,bz, allR,allT,bz,
+           allR,allT,bz, allL,allT,bz,
+           allL,allT,bz, allL,allB,bz], lc, 0.25);
+
+  // ── 2. Per-frame nails, width labels, x labels ──
+  FB.forEach(function(fb,i){
+    // Nail dot at top center
+    var nail=new THREE.Mesh(
+      new THREE.SphereGeometry(LH*0.18,8,8),
+      new THREE.MeshBasicMaterial({color:(lc===0xffffff)?0xffffff:0x333333})
+    );
+    nail.position.set(fb.cx, fb.t, 0.02);
+    gridGroup.add(nail);
+
+    // Thin leader line nail→width label zone
+    addLine([fb.cx,fb.t,bz, fb.cx,A_WLBL-LH*0.5,bz], lc, 0.2);
+
+    // Width label (A_WLBL row)
+    addLabel("W:"+inStr(fb.pw), fb.cx, A_WLBL);
+
+    // Height label (A_HLBL row)
+    addLabel('H:'+inStr(fb.ph), fb.cx, A_HLBL);
+
+    // X-offset label — stagger vertically for adjacent labels to avoid overlap
+    var xRow=A_XLBL+(i%2===0?0:LH*1.1);
+    addLabel('x:'+signStr(fb.wallX), fb.cx, xRow);
+  });
+
+  // ── 3. Total width dim line (A_DIMLN) + label (A_DLBL) ──
+  addDimLine(allL, A_DIMLN, allR, A_DIMLN);
+  addLabel(inStr(totalW/I)+' wide', (allL+allR)/2, A_DLBL);
+
+  // ── 4. CL marker ──
+  var clX=(allL+allR)/2;
+  addLine([clX, A_DIMLN-LH*0.3, bz, clX, allB, bz], lc, 0.18);
+  addLabel('CL', clX, A_CL);
+
+  // ── 5. Gap dim lines (B_DIMLN) + labels (B_GLBL) ──
+  for(var gi=0;gi<n-1;gi++){
+    var gL=FB[gi].r, gR=FB[gi+1].l, gM=(gL+gR)/2;
+    if(gR>gL){ // only if there's actually a gap
+      addDimLine(gL, B_DIMLN, gR, B_DIMLN);
+      addLabel(inStr((gR-gL)/I)+' gap', gM, B_GLBL);
+    }
+  }
+
+  // ── 6. Height diagram ──
+  // Tallest frame: full height dim line on right (R_H0 column)
+  var tallest=FB.reduce(function(a,b){return b.ph>a.ph?b:a;},FB[0]);
+  var tallestTop=tallest.t; // world Y of tallest frame top
+  addDimLine(R_H0, tallest.b, R_H0, tallest.t);
+  addLabel(inStr(tallest.ph)+' h', R_H0L, tallest.cy);
+
+  // Shorter frames: show DROP from tallest top to this frame's top
+  // as a dim line from tallestTop down to fb.t, in a separate column per unique drop.
+  // Also draw inside-the-diagram: a horizontal dashed leader from tallestTop across.
+  var allSameH=FB.every(function(fb){return Math.abs(fb.t-tallestTop)<0.001;});
+  if(!allSameH){
+    // Faint horizontal reference line at tallest top across full width
+    addLine([allL-LH*0.5, tallestTop, bz, allR+LH*0.5, tallestTop, bz], lc, 0.25);
+
+    // Collect unique drops (by drop value, inches)
+    var seenDrop={}, uniqueDrops=[];
+    FB.forEach(function(fb){
+      var dropW=(tallestTop-fb.t)/I; // inches drop from tallest top to this top
+      if(dropW>0.05){
+        var key=dropW.toFixed(2);
+        if(!seenDrop[key]){
+          seenDrop[key]=true;
+          uniqueDrops.push({dropW:dropW, fb:fb});
+        }
+      }
+    });
+
+    // Draw each unique drop in its own column (stacked outward from R_H0)
+    uniqueDrops.forEach(function(ud, col){
+      var rx=R_H0+((col+1)*COLW);
+      var lx=rx+LH*1.6;
+      // Dim line: from tallestTop DOWN to this frame's top
+      addDimLine(rx, ud.fb.t, rx, tallestTop);
+      // Label the drop distance at midpoint of the dim line
+      var midY=(tallestTop+ud.fb.t)/2;
+      addLabel('-'+inStr(ud.dropW)+' drop', lx, midY);
+      // Also label each frame's own top with a small tick+label inside diagram
+      addLine([ud.fb.l-LH*0.2, ud.fb.t, bz, ud.fb.r+LH*0.2, ud.fb.t, bz], lc, 0.3);
+    });
+  }
+
+  // ── 7. Floor-to-nail dim line (R_FLOOR) + label ──
+  var nailY=allT;
+  addDimLine(R_FLOOR, floorY, R_FLOOR, nailY);
+  // Floor baseline tick
+  addLine([R_FLOOR-LH*0.6, floorY, bz, R_FLOOR+LH*0.2, floorY, bz], lc, 0.7);
+  addLabel(inStr((nailY-floorY)/I)+' from floor', R_FLLBL, (floorY+nailY)/2);
+
+  // ── 8. Left side: total height dim line + label ──
+  addDimLine(L_HDM, allB, L_HDM, allT);
+  addLabel(inStr(totalH/I)+' h', L_HLBL, (allB+allT)/2);
 }
 
 // ═══════════════════════════════════════════════
@@ -1243,6 +1606,8 @@ function rebuild3D(){
     }
     var shM=new THREE.Mesh(new THREE.PlaneGeometry(uW+0.06,uH+0.06),new THREE.MeshBasicMaterial({color:0,opacity:0.13,transparent:true}));
     shM.position.z=(frameType==='canvas'||frameType==='wrap'?-depth3D/2:0)-0.004; group.add(shM);
+
+
     group.position.set(f.wallX*INCH3D, f.wallY*INCH3D+globalVOff*INCH3D, 0);
     scene.add(group); pmeshes.push(group);
   }
@@ -1269,6 +1634,7 @@ function rebuild3D(){
     var hFt=(maxH/12).toFixed(1), hIn=maxH.toFixed(1);
         var dimStr=frames.length+' prints  ·  '+wIn+'" ('+wFt+'ft) wide  ·  '+hIn+'" ('+hFt+'ft) tall';
     document.getElementById('three-info').textContent=dimStr;
+  if(gridMode==='tape') rebuildGrid(); // refresh tape when prints change
   } else {
     document.getElementById('three-info').textContent='WebGL';
   }
@@ -1313,7 +1679,7 @@ function canvasTex(c){var t=new THREE.CanvasTexture(c);t.anisotropy=renderer?ren
 function setFT(t,btn){frameType=t;document.querySelectorAll('#ft-tg .tgb').forEach(function(b){b.classList.remove('act');b.classList.remove('act-wrap');});btn.classList.add(t==='wrap'?'act-wrap':'act');document.getElementById('wrap-info').style.display=t==='wrap'?'block':'none';renderEditor();rebuild3D();}
 function setFC(el){document.querySelectorAll('#fc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');frameColor=el.dataset.c;rebuild3D();}
 function setWC(el){document.querySelectorAll('#wc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');wallColor=el.dataset.c;if(wallMesh)wallMesh.material.color.set(new THREE.Color(wallColor));}
-function setGrid(m,btn){gridMode=m;document.querySelectorAll('#grid-off,#grid-in,#grid-ft').forEach(function(b){b.classList.remove('act');});btn.classList.add('act');rebuildGrid();}
+function setGrid(m,btn){gridMode=m;document.querySelectorAll('#grid-off,#grid-in,#grid-ft,#grid-tape').forEach(function(b){b.classList.remove('act');});btn.classList.add('act');rebuildGrid();}
 function setFurn(t,btn){furnType=t;document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('act');});btn.classList.add('act');rebuildFurniture();}
 function setFurnC(el){document.querySelectorAll('#furnc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');furnColor=el.dataset.c;rebuildFurniture();}
 function onDepth(v){wrapDepth=parseFloat(v);document.getElementById('depth-v').textContent=v+'"';if(frameType==='wrap')renderEditor();rebuild3D();}
@@ -1349,6 +1715,175 @@ function downloadFrames(){
     })(i);
   }
   setTimeout(function(){showToast(frames.length+' prints queued!');},500);
+}
+
+
+var HELP_DATA = {
+  'layout-mode': {title: 'Layout Mode', body: '<p><strong>Templates</strong> automatically arrange your crop windows using preset patterns. Great for getting started. You can drag crops to reposition after applying.</p><p><strong>Free</strong> mode lets you add and position crop windows manually. Drag bodies to move, drag corner handles to resize.</p>'},
+  'num-prints': {title: 'Number of Prints', body: '<p>How many individual print panels to split your panorama into. Each becomes a separate full-resolution image file for printing.</p><p><strong>Tip:</strong> 3 panels is most popular for panoramas — a classic triptych. 5 or more panels creates a dramatic multi-panel wall installation.</p>'},
+  'template': {title: 'Template Layouts', body: '<p><strong>Even</strong> — equal-width panels side by side.</p><p><strong>Stair</strong> — panels step down progressively in height.</p><p><strong>Wide Mid</strong> — center panel is wider than the flanking panels.</p><p><strong>Tall Mid</strong> — center panel is taller; sides are shorter and centered.</p><p><strong>Pyramid</strong> — heights taper from tallest center to shortest edges.</p><p><strong>Sin Wave</strong> — panels follow a sine wave vertically for a flowing look.</p>'},
+  'print-size': {title: 'Default Print Size', body: '<p>The physical dimensions of each print in inches. This sets the crop window aspect ratio and pixel dimensions.</p><p>Crop pixels = print inches x DPI. The DPI is controlled by the <em>Panorama Canvas Scale</em> below — a wider canvas means lower DPI per print.</p><p>Common panorama panel sizes: <strong>10x20"</strong>, <strong>12x24"</strong>, <strong>16x48"</strong>. Check what your print lab supports.</p>'},
+  'frame-style': {title: 'Frame Style', body: '<p><strong>Canvas</strong> — canvas stretched over a wooden bar frame. Sides show the frame color.</p><p><strong>Wrap</strong> — gallery wrap: image continues around the sides. The orange border in the crop editor shows the extra image area used for wrapping. Download includes the wrap area so your printer can fold it over.</p><p><strong>Float</strong> — frameless print floating in front of a thin backing board.</p><p><strong>Bare</strong> — flat print with no frame or depth.</p>'},
+  'depth': {title: 'Frame / Wrap Depth', body: '<p>The physical thickness of the canvas frame or stretcher bar, in inches.</p><p>Common depths: <strong>0.75"</strong> (thin profile), <strong>1.5"</strong> (standard gallery wrap), <strong>2"</strong> (deep gallery/museum wrap).</p><p>In Wrap mode, this also controls how many pixels of image extend around each side.</p>'},
+  'grid': {title: 'Wall Measurement Grid', body: '<p>Overlays a measurement grid on the 3D wall so you can gauge real-world spacing at a glance.</p><p><strong>Off</strong> — clean wall, no grid.</p><p><strong>Feet</strong> — major lines every 12" (1 foot), minor lines every 6".</p><p><strong>Inches</strong> — major lines every 12", minor lines every 1".</p><p>One major square always equals one foot in both modes.</p>'},
+  'mounting-height': {title: 'Frame Mounting Height', body: '<p>Shifts all prints up or down on the 3D preview wall, in inches from wall center.</p><p>24" places print centers 2 feet above wall center — comfortable eye-level height above a desk or console table.</p><p>Standard art hanging guideline: center of artwork at 57-60" from the floor. Adjust based on your ceiling height and furniture.</p>'},
+  'canvas-scale': {title: 'Panorama Canvas Scale', body: '<p>Sets the physical real-world width of the entire panorama in inches (or cm in metric mode). This is the master scale control — everything else derives from it.</p><p><strong>DPI = panorama pixel width / canvas width.</strong> A 12,000px panorama at 120\" wide = 100 DPI. At 60\" wide = 200 DPI.</p><p>Use the quick buttons (5ft, 8ft, 10ft, 12ft, 20ft) for common wall widths, or type any exact value in the number field.</p><p><strong>Tip:</strong> If the DPI warning appears, reduce the canvas width to increase DPI, or choose smaller print sizes.</p>'},
+  'furniture': {title: 'Furniture', body: '<p>Places furniture in the 3D scene to give a sense of real-world scale and help visualize how the prints look in a room.</p><p>All furniture sits on the floor in front of the wall. Use <strong>Frame Mounting Height</strong> to position prints at the right height above it.</p><p>Use the color swatches below the furniture grid to change the furniture color.</p>'},
+};
+
+function showHelp(key, e) {
+  if (e) e.stopPropagation();
+  var d = HELP_DATA[key]; if (!d) return;
+  document.getElementById('help-title').textContent = d.title;
+  document.getElementById('help-body').innerHTML = d.body;
+  document.getElementById('help-overlay').style.display = 'flex';
+}
+function closeHelp() {
+  document.getElementById('help-overlay').style.display = 'none';
+}
+
+// Standard ISO/print sizes in inches [W, H]
+var STD_SIZES=[
+  [4,6],[5,7],[6,4],[7,5],
+  [8,8],[8,10],[8,12],[10,8],[12,8],
+  [10,10],[10,20],[20,10],
+  [11,14],[14,11],
+  [12,12],[12,18],[12,24],[18,12],[24,12],
+  [16,16],[16,20],[16,24],[20,16],[24,16],
+  [20,20],[20,24],[20,30],[24,20],[30,20],
+  [24,36],[36,24],
+  [4.1,5.8],[5.8,4.1],   // A6
+  [5.8,8.3],[8.3,5.8],   // A5
+  [8.3,11.7],[11.7,8.3], // A4
+  [11.7,16.5],[16.5,11.7],// A3
+  [16.5,23.4],[23.4,16.5],// A2
+  [23.4,33.1],[33.1,23.4],// A1
+];
+
+function snapToStdSize(w, h){
+  // Find the standard size with smallest total deviation from w,h
+  var best=null, bestDist=Infinity;
+  STD_SIZES.forEach(function(s){
+    var d=Math.abs(s[0]-w)+Math.abs(s[1]-h);
+    if(d<bestDist){bestDist=d;best=s;}
+  });
+  return best||[w,h];
+}
+
+function toggleStdSizes(){
+  standardSizesOnly=!standardSizesOnly;
+  var btn=document.getElementById('std-sizes-btn');
+  if(btn){
+    btn.textContent=standardSizesOnly?'ON':'OFF';
+    btn.style.borderColor=standardSizesOnly?'var(--accent)':'var(--border)';
+    btn.style.color=standardSizesOnly?'var(--accent)':'var(--muted)';
+  }
+  if(layoutMode==='template') applyTemplate();
+}
+
+function toggleUnits(){
+  useMetric=!useMetric;
+  var btn=document.getElementById('unit-toggle');
+  if(btn){
+    btn.textContent=useMetric?'CM / MM':'IN / FT';
+    btn.style.borderColor=useMetric?'var(--accent2)':'var(--accent2)';
+  }
+  // Update all displayed labels
+  updateUnitLabels();
+  rebuildList();
+  updatePanoDPIInfo();
+}
+
+// Unit display helpers
+function unitLabel(){ return useMetric?'cm':'in'; }
+function dispVal(inches){ return useMetric?(inches*2.54).toFixed(1):inches.toFixed(1); }
+function toInches(v){ return useMetric?parseFloat(v)/2.54:parseFloat(v); }
+
+function inchesToDisp(inches){
+  if(useMetric) return (inches*2.54).toFixed(1)+'cm';
+  return inches.toFixed(1)+'"';
+}
+function inchesToDispShort(inches){
+  if(useMetric) return (inches*2.54).toFixed(0)+'cm';
+  return inches.toFixed(0)+'"';
+}
+
+function updateUnitLabels(){
+  var ul=unitLabel();
+  // Gap label
+  var gv=document.getElementById('gap-v'); if(gv) gv.textContent=inchesToDisp(gapInches);
+  // voff label
+  var vv=document.getElementById('voff-v'); if(vv) vv.textContent=inchesToDisp(globalVOff);
+  // canvas scale label
+  var pcwv=document.getElementById('pcw-v'); if(pcwv) pcwv.textContent=inchesToDispShort(panoCanvasW);
+  // canvas number input
+  var pcwn=document.getElementById('pcw-n');
+  if(pcwn){
+    pcwn.value=useMetric?(panoCanvasW*2.54).toFixed(1):panoCanvasW.toFixed(1);
+    pcwn.nextSibling&&(pcwn.nextSibling.textContent=useMetric?' cm wide':' in wide');
+  }
+  // sidebar static unit labels: gap, shift, depth, voff
+  var labels=document.querySelectorAll('.field label');
+  labels.forEach(function(l){
+    l.childNodes[0]&&(l.childNodes[0].textContent=l.childNodes[0].textContent
+      .replace(/ \(in\)/g,' ('+ul+')')
+      .replace(/ \(cm\)/g,' ('+ul+')')
+    );
+  });
+  // Shift offset display values
+  var cox=document.getElementById('cox-v'); if(cox) cox.textContent=inchesToDisp(cropOffsetX);
+  var coy=document.getElementById('coy-v'); if(coy) coy.textContent=inchesToDisp(cropOffsetY);
+  // depth display
+  var dv=document.getElementById('depth-v'); if(dv) dv.textContent=inchesToDisp(wrapDepth);
+  // pano dpi info
+  updatePanoDPIInfo();
+  // Rebuild list to update W/H labels
+  rebuildList();
+}
+
+// Panel expand/restore
+var expandedPanel=null; // 'editor' | '3d' | null
+
+function expandPanel(which){
+  var edPanel=document.getElementById('panel-editor');
+  var tdPanel=document.getElementById('panel-3d');
+  var edBtn=document.getElementById('expand-editor');
+  var tdBtn=document.getElementById('expand-3d');
+
+  if(expandedPanel===which){
+    // Restore both to equal
+    expandedPanel=null;
+    edPanel.style.flex='1'; edPanel.style.minHeight='0';
+    tdPanel.style.flex='1'; tdPanel.style.minHeight='0';
+    edBtn.textContent='⛶ EXPAND'; edBtn.classList.remove('active');
+    tdBtn.textContent='⛶ EXPAND'; tdBtn.classList.remove('active');
+  } else {
+    // Expand the requested panel, collapse the other
+    expandedPanel=which;
+    if(which==='editor'){
+      edPanel.style.flex='4'; edPanel.style.minHeight='0';
+      tdPanel.style.flex='0'; tdPanel.style.minHeight='36px';
+      edBtn.textContent='▣ RESTORE'; edBtn.classList.add('active');
+      tdBtn.textContent='⛶ EXPAND'; tdBtn.classList.remove('active');
+    } else {
+      edPanel.style.flex='0'; edPanel.style.minHeight='36px';
+      tdPanel.style.flex='4'; tdPanel.style.minHeight='0';
+      edBtn.textContent='⛶ EXPAND'; edBtn.classList.remove('active');
+      tdBtn.textContent='▣ RESTORE'; tdBtn.classList.add('active');
+    }
+  }
+  // Give layout a frame to settle, then notify both canvases
+  requestAnimationFrame(function(){
+    sizeEditor();
+    if(renderer){
+      var w=document.getElementById('three-wrap');
+      if(w.clientWidth>2&&w.clientHeight>2){
+        renderer.setSize(w.clientWidth,w.clientHeight);
+        camera.aspect=w.clientWidth/w.clientHeight;
+        camera.updateProjectionMatrix();
+      }
+    }
+  });
 }
 
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2600);}
