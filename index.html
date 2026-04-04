@@ -196,7 +196,7 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
               <div class="tbtn"     data-t="wide"    onclick="pickT(this)">WIDE MID</div>
               <div class="tbtn"     data-t="tall"    onclick="pickT(this)">TALL MID</div>
               <div class="tbtn"     data-t="pyramid" onclick="pickT(this)">PYRAMID</div>
-              <div class="tbtn"     data-t="strip"   onclick="pickT(this)">STRIP</div>
+              <div class="tbtn"     data-t="strip"   onclick="pickT(this)">SIN WAVE</div>
             </div>
           </div>
           <div class="field">
@@ -252,6 +252,14 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
           <div class="field">
             <label>Gap (in) <span class="vd" id="gap-v">1.0"</span></label>
             <input type="range" id="gap-r" min="0" max="12" value="1" step="0.25" oninput="onGap(this.value)">
+          </div>
+          <div class="field">
+            <label>Shift Horizontal (in) <span class="vd" id="cox-v">0"</span></label>
+            <input type="range" id="cox-r" min="-120" max="120" value="0" step="0.5" oninput="onCropOffset('x',this.value)">
+          </div>
+          <div class="field">
+            <label>Shift Vertical (in) <span class="vd" id="coy-v">0"</span></label>
+            <input type="range" id="coy-r" min="-60" max="60" value="0" step="0.5" oninput="onCropOffset('y',this.value)">
           </div>
         </div>
         <div id="free-ui" style="display:none">
@@ -343,19 +351,19 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
           </div>
         </div>
         <div class="field">
-          <label>Global Y Offset (in) <span class="vd" id="voff-v">0"</span></label>
-          <input type="range" id="voff-r" min="-40" max="40" step="0.5" value="0" oninput="onVOff(this.value)">
+          <label>Global Y Offset (in) <span class="vd" id="voff-v">24"</span></label>
+          <input type="range" id="voff-r" min="-40" max="40" step="0.5" value="24" oninput="onVOff(this.value)">
         </div>
       </div>
 
       <div>
         <div class="sec">Furniture</div>
         <div class="furn-grid">
-          <div class="fbtn act" data-f="none"    onclick="setFurn('none',this)">— NONE —</div>
+          <div class="fbtn"     data-f="none"    onclick="setFurn('none',this)">— NONE —</div>
           <div class="fbtn" data-f="sofa"    onclick="setFurn('sofa',this)">🛋 SOFA</div>
           <div class="fbtn" data-f="console" onclick="setFurn('console',this)">🪑 CONSOLE</div>
           <div class="fbtn" data-f="bed"     onclick="setFurn('bed',this)">🛏 BED</div>
-          <div class="fbtn" data-f="desk"    onclick="setFurn('desk',this)">🖥 DESK</div>
+          <div class="fbtn act" data-f="desk"    onclick="setFurn('desk',this)">🖥 DESK</div>
           <div class="fbtn" data-f="lamp"    onclick="setFurn('lamp',this)">💡 LAMP</div>
           <div class="fbtn" data-f="plant"   onclick="setFurn('plant',this)">🌿 PLANT</div>
         </div>
@@ -440,7 +448,8 @@ function panoDPI(){ return panoImg ? panoImg.width/panoCanvasW : 300; }
 // Physical height of panorama in inches
 function panoCanvasH(){ return panoImg ? (panoImg.height/panoImg.width)*panoCanvasW : 60; }
 var frameType='canvas', frameColor='#1a1a1a', wallColor='#d4cfc9';
-var wrapDepth=1.5, globalVOff=0, gridMode='none', furnType='none', furnColor='#5a4a3a';
+var wrapDepth=1.5, globalVOff=24, gridMode='none', furnType='desk', furnColor='#5a4a3a';
+var cropOffsetX=0, cropOffsetY=0; // shared offset for all crops in inches
 
 // ═══════════════════════════════════════════════
 // UPLOAD
@@ -470,8 +479,10 @@ function loadFile(file){
       // By this point flex layout has run and #editor-wrap / #three-wrap have real pixel sizes
       initEditor();
       initThree();
+      rebuildFurniture(); // must be after initThree() creates scene/furnGroup
       applyTemplate();
       updatePanoDPIInfo();
+      syncShiftSliderRange();
     });
   };
   image.onerror=function(){alert('Could not load image.');};
@@ -498,7 +509,14 @@ function setMode(m){
 // ═══════════════════════════════════════════════
 function pickT(el){
   document.querySelectorAll('.tbtn').forEach(function(b){b.classList.remove('act');});
-  el.classList.add('act'); activeTmpl=el.dataset.t; applyTemplate();
+  el.classList.add('act'); activeTmpl=el.dataset.t;
+  // Reset crop offsets when switching template
+  cropOffsetX=0; cropOffsetY=0;
+  var rx=document.getElementById('cox-r'); if(rx) rx.value=0;
+  var ry=document.getElementById('coy-r'); if(ry) ry.value=0;
+  document.getElementById('cox-v').textContent='0"';
+  document.getElementById('coy-v').textContent='0"';
+  applyTemplate();
 }
 function gapPxVal(){
   // Gap in pixels = gapInches * DPI where DPI = panoImg.width / panoCanvasW
@@ -511,36 +529,86 @@ function applyTemplate(){
   var IW=panoImg.width,IH=panoImg.height,g=gapPxVal();
   frames=[];
   function mkF(x,y,w,h,i){
-    // Crop pixels = print inches * DPI (DPI = panoImg.width / panoCanvasW)
+    // x,y = top-left of crop in image pixels (set by template)
+    // w    = crop width in pixels  (set by template — may differ per frame for 'wide')
+    // h    = crop height in pixels (set by template — varies for tall/pyramid/strip/stair)
+    // Physical print size is always defaultPrintW x defaultPrintH for display;
+    // but for 'wide' template the wider frame gets a proportionally larger printW.
     var dpi=panoDPI();
-    var pw=defaultPrintW, ph=defaultPrintH;
-    var cropW=Math.round(pw*dpi); // crop width in pixels
-    var cropH=Math.round(ph*dpi); // crop height in pixels
-    // Use the crop pixel size — x is the starting x, centered on y
-    var midY=y+h/2;
-    var newY=Math.max(0, midY-cropH/2);
-    if(newY+cropH>panoImg.height) newY=Math.max(0,panoImg.height-cropH);
-    frames.push({x:x,y:newY,w:cropW,h:cropH,printW:pw,printH:ph,wallX:0,wallY:0,color:COLS[i%COLS.length]});
+    var pw=w/dpi;  // physical width = crop px / DPI
+    var ph=h/dpi;  // physical height = crop px / DPI
+    // Apply group offset (in image pixels = offset_inches * DPI)
+    var ox=Math.round(cropOffsetX*dpi), oy=Math.round(cropOffsetY*dpi);
+    var fx=x+ox, fy=y+oy;
+    // Clamp to image bounds
+    fx=Math.max(0,Math.min(panoImg.width-w,fx));
+    fy=Math.max(0,Math.min(panoImg.height-h,fy));
+    frames.push({x:fx,y:fy,w:Math.round(w),h:Math.round(h),printW:pw,printH:ph,wallX:0,wallY:0,color:COLS[i%COLS.length]});
   }
+  var dpi=panoDPI(), g2=gapPxVal();
+  var cW=Math.round(defaultPrintW*dpi); // standard crop width px
+  var cH=Math.round(defaultPrintH*dpi); // standard crop height px
+  // Center crops vertically in image by default
+  var cY=Math.round((IH-cH)/2);
+
   if(activeTmpl==='even'){
-    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal(); for(var i=0;i<n;i++) mkF(i*(fw+g2),0,fw,IH,i);
+    for(var i=0;i<n;i++) mkF(i*(cW+g2), cY, cW, cH, i);
+
   } else if(activeTmpl==='stair'){
-    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal();
-    for(var i=0;i<n;i++){var yo=i*IH*0.12,h=Math.max(IH*0.35,IH-yo*1.4);mkF(i*(fw+g2),Math.min(yo*0.4,IH-h),fw,Math.min(h,IH),i);}
-  } else if(activeTmpl==='wide'){
-    var dpi=panoDPI(),g2=gapPxVal();
-    if(n===1){mkF(0,0,Math.round(defaultPrintW*dpi),IH,0);}else{
-      var mi=Math.floor(n/2),mfw=Math.round(defaultPrintW*1.8*dpi),sfw=Math.round(defaultPrintW*dpi),cx=0;
-      for(var i=0;i<n;i++){var fw=(i===mi)?mfw:sfw;mkF(cx,0,fw,IH,i);cx+=fw+g2;}
+    // Each print steps down and gets slightly shorter
+    var stepY=Math.round(IH*0.08); // vertical step between frames
+    var maxH=cH, minH=Math.round(cH*0.65);
+    for(var i=0;i<n;i++){
+      var fh=Math.round(maxH - i*(maxH-minH)/Math.max(1,n-1));
+      var fy=Math.round(i*stepY);
+      if(fy+fh>IH) fy=IH-fh;
+      mkF(i*(cW+g2), fy, cW, fh, i);
     }
+
+  } else if(activeTmpl==='wide'){
+    // Middle print is wider (1.8×), side prints are standard width
+    if(n===1){ mkF(0, cY, cW, cH, 0); }
+    else{
+      var mi=Math.floor(n/2);
+      var mW=Math.round(defaultPrintW*1.8*dpi); // wider center
+      var cx=0;
+      for(var i=0;i<n;i++){
+        var fw2=(i===mi)?mW:cW;
+        mkF(cx, cY, fw2, cH, i);
+        cx+=fw2+g2;
+      }
+    }
+
   } else if(activeTmpl==='tall'){
-    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal(),mi=Math.floor(n/2);
-    for(var i=0;i<n;i++){if(i===mi)mkF(i*(fw+g2),0,fw,IH,i);else{var h=IH*0.6,y=(IH-h)/2;mkF(i*(fw+g2),y,fw,h,i);}}
+    // Middle print is full height; side prints are shorter and centered vertically
+    var mi=Math.floor(n/2);
+    var sH=Math.round(cH*0.6); // side print height
+    var sY=Math.round((IH-sH)/2); // side print top
+    for(var i=0;i<n;i++){
+      if(i===mi) mkF(i*(cW+g2), cY, cW, cH, i);
+      else        mkF(i*(cW+g2), sY, cW, sH, i);
+    }
+
   } else if(activeTmpl==='pyramid'){
-    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal();
-    for(var i=0;i<n;i++){var d=Math.abs(i-(n-1)/2)/Math.max(1,(n-1)/2),h=IH*(0.44+0.56*(1-d)),y=(IH-h)/2;mkF(i*(fw+g2),y,fw,h,i);}
+    // Heights taper from tall center to short edges
+    for(var i=0;i<n;i++){
+      var dist=Math.abs(i-(n-1)/2)/Math.max(1,(n-1)/2);
+      var fh=Math.round(cH*(0.45+0.55*(1-dist)));
+      var fy=Math.round((IH-fh)/2);
+      mkF(i*(cW+g2), fy, cW, fh, i);
+    }
+
   } else if(activeTmpl==='strip'){
-    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal(),h=IH*0.38,y=(IH-h)/2; for(var i=0;i<n;i++) mkF(i*(fw+g2),y,fw,h,i);
+    // Sin wave: prints arranged in a sine wave vertically
+    // Each print is standard size; Y position follows a sine curve
+    var amplitude=Math.round(IH*0.28); // peak-to-trough in pixels
+    var midY2=Math.round((IH-cH)/2);   // center baseline
+    for(var i=0;i<n;i++){
+      var phase=(n<2)?0:(i/(n-1))*Math.PI*2; // full sine cycle across all prints
+      var fy2=Math.round(midY2+amplitude*Math.sin(phase));
+      fy2=Math.max(0,Math.min(IH-cH,fy2));
+      mkF(i*(cW+g2), fy2, cW, cH, i);
+    }
   }
   frames.forEach(function(f){clampF(f);}); autoWallPos(); selIdx=-1;
   rebuildList(); renderEditor(); rebuild3D(); updateStatus(); updatePanoDPIInfo();
@@ -553,15 +621,21 @@ function clampF(f){
   f.y=Math.max(0,Math.min(panoImg.height-f.h,f.y));
 }
 function autoWallPos(){
-  // With panoCanvasW as master: 1 image pixel = 1/panoDPI() inches.
-  // So wall position in inches = crop_center_pixel / panoDPI() - panoCanvasW/2 (centered)
+  // wallX/Y are relative to the CENTER OF THE PRINT GROUP (not panorama center).
+  // This keeps the 3D arrangement always centered at X=0 (above desk),
+  // regardless of where in the panorama the crops happen to be.
+  // Gaps and relative positions between prints are preserved exactly.
   if(!frames.length||!panoImg) return;
   var dpi=panoDPI();
-  var canvasCX=panoImg.width/2, canvasCY=panoImg.height/2;
+  // Compute the center of the bounding box of all crop centers
+  var sumCX=0, sumCY=0;
+  frames.forEach(function(f){ sumCX+=f.x+f.w/2; sumCY+=f.y+f.h/2; });
+  var groupCX=sumCX/frames.length;
+  var groupCY=sumCY/frames.length;
   frames.forEach(function(f){
     var fcx=f.x+f.w/2, fcy=f.y+f.h/2;
-    f.wallX=(fcx-canvasCX)/dpi;
-    f.wallY=-(fcy-canvasCY)/dpi;
+    f.wallX=(fcx-groupCX)/dpi;  // relative to group center → always centered at 0
+    f.wallY=-(fcy-groupCY)/dpi;
   });
 }
 
@@ -600,12 +674,28 @@ function onWXn(idx,val){var f=frames[idx];if(!f)return;var v=parseFloat(val);if(
 function onWYn(idx,val){var f=frames[idx];if(!f)return;var v=parseFloat(val);if(isNaN(v))return;f.wallY=v;var r=document.getElementById('wy-r-'+idx);if(r)r.value=v.toFixed(1);rebuild3D();}
 function onDPI(v){/* DPI slider removed */}
 function onGap(v){gapInches=parseFloat(v);document.getElementById('gap-v').textContent=parseFloat(v).toFixed(2)+'"';if(layoutMode==='template') applyTemplate();}
+function onCropOffset(axis,v){
+  var val=parseFloat(v);
+  if(axis==='x'){cropOffsetX=val;document.getElementById('cox-v').textContent=val.toFixed(1)+'"';}
+  else{cropOffsetY=val;document.getElementById('coy-v').textContent=val.toFixed(1)+'"';}
+  if(layoutMode==='template') applyTemplate();
+  else{ frames.forEach(function(f){
+    var dpi=panoDPI();
+    f.x+=Math.round(axis==='x'?val*dpi:0); f.y+=Math.round(axis==='y'?val*dpi:0); clampF(f);
+  }); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); }
+}
+// Keep horizontal shift slider range in sync with panoCanvasW
+function syncShiftSliderRange(){
+  var r=document.getElementById('cox-r'); if(!r) return;
+  var half=Math.ceil(panoCanvasW); // full canvas width in each direction
+  r.min=-half; r.max=half;
+}
 
 function onPanoCanvasW(v){
   panoCanvasW=parseFloat(v)||120;
   var ni=document.getElementById('pcw-n'); if(ni) ni.value=panoCanvasW;
   document.getElementById('pcw-v').textContent=panoCanvasW+'"';
-  updatePanoDPIInfo();
+  updatePanoDPIInfo(); syncShiftSliderRange();
   if(layoutMode==='template') applyTemplate(); else { frames.forEach(function(f){rescaleCropByDPI(f);}); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus(); }
 }
 function onPanoCanvasWn(v){
@@ -613,7 +703,7 @@ function onPanoCanvasWn(v){
   panoCanvasW=val;
   var ri=document.getElementById('pcw-r'); if(ri){ ri.min=Math.min(ri.min,val); ri.max=Math.max(ri.max,val); ri.value=val; }
   document.getElementById('pcw-v').textContent=val+'"';
-  updatePanoDPIInfo();
+  updatePanoDPIInfo(); syncShiftSliderRange();
   if(layoutMode==='template') applyTemplate(); else { frames.forEach(function(f){rescaleCropByDPI(f);}); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus(); }
 }
 function setPCW(inches){
@@ -621,7 +711,7 @@ function setPCW(inches){
   var ri=document.getElementById('pcw-r'); if(ri) ri.value=inches;
   var ni=document.getElementById('pcw-n'); if(ni) ni.value=inches;
   document.getElementById('pcw-v').textContent=inches+'"';
-  updatePanoDPIInfo();
+  updatePanoDPIInfo(); syncShiftSliderRange();
   if(layoutMode==='template') applyTemplate(); else { frames.forEach(function(f){rescaleCropByDPI(f);}); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus(); }
 }
 function updatePanoDPIInfo(){
@@ -1013,26 +1103,48 @@ function rebuildGrid(){
   if(!scene||!gridGroup) return;
   while(gridGroup.children.length) gridGroup.remove(gridGroup.children[0]);
   if(gridMode==='none') return;
-  var isIn=(gridMode==='inches'),major=isIn?6:12,minor=isIn?1:6;
-  var hW=72*INCH3D,hH=48*INCH3D,wY=2,z=-0.19;
+
+  // Grid dimensions: 240" (20ft) each way
+  var halfInchW=120, halfInchH=80; // half-extents in inches
+  var wY=2, z=-0.19;
+
+  // Step sizes in inches (use integers to avoid float drift)
+  // FEET mode:  major = 12" (1 ft),  minor = 6" (half foot)
+  // INCHES mode: major = 12" (1 ft), minor = 1" (one inch)
+  var isIn=(gridMode==='inches');
+  var majorIn=12;                   // major lines every 12" in both modes
+  var minorIn=isIn?1:6;             // minor: 1" or 6" between major
+
   function lines(pts,col,op){
     var geo=new THREE.BufferGeometry(),v=[];
-    for(var i=0;i<pts.length;i+=2){v.push(pts[i][0],pts[i][1]+wY,z,pts[i+1][0],pts[i+1][1]+wY,z);}
+    for(var i=0;i<pts.length;i+=2){
+      // pts are in inches; convert to world units. Y offset by wY (wall center).
+      v.push(pts[i][0]*INCH3D,   wY+pts[i][1]*INCH3D,   z,
+             pts[i+1][0]*INCH3D, wY+pts[i+1][1]*INCH3D, z);
+    }
     geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v),3));
     gridGroup.add(new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:col,opacity:op,transparent:true})));
   }
-  var minorPts=[],majorPts=[];
-  for(var v=-hW;v<=hW+0.001;v+=minor*INCH3D){
-    if(Math.abs(v%(major*INCH3D))>0.001) minorPts.push([v,-hH],[v,hH]);
-    else majorPts.push([v,-hH],[v,hH]);
+
+  var minorPts=[], majorPts=[], feetPts=[];
+  // Vertical lines (X axis)
+  for(var ix=-halfInchW;ix<=halfInchW;ix+=minorIn){
+    var isMaj=(ix%majorIn===0);
+    var isFt=(ix%12===0);
+    var x=ix; // inches
+    if(isMaj) majorPts.push([x,-halfInchH],[x,halfInchH]);
+    else minorPts.push([x,-halfInchH],[x,halfInchH]);
   }
-  for(var v=-hH;v<=hH+0.001;v+=minor*INCH3D){
-    if(Math.abs(v%(major*INCH3D))>0.001) minorPts.push([-hW,v],[hW,v]);
-    else majorPts.push([-hW,v],[hW,v]);
+  // Horizontal lines (Y axis)
+  for(var iy=-halfInchH;iy<=halfInchH;iy+=minorIn){
+    var isMaj=(iy%majorIn===0);
+    if(isMaj) majorPts.push([-halfInchW,iy],[halfInchW,iy]);
+    else minorPts.push([-halfInchW,iy],[halfInchW,iy]);
   }
-  if(minorPts.length) lines(minorPts,0x888888,0.18);
-  if(majorPts.length) lines(majorPts,0xaaaaaa,0.35);
-  lines([[0,-hH],[0,hH],[-hW,0],[hW,0]],0xcccccc,0.5);
+  if(minorPts.length) lines(minorPts,0x666666,0.15);
+  if(majorPts.length) lines(majorPts,0x999999,0.40);
+  // Center cross brighter
+  lines([[0,-halfInchH],[0,halfInchH],[-halfInchW,0],[halfInchW,0]],0xbbbbbb,0.55);
 }
 
 // ═══════════════════════════════════════════════
@@ -1134,7 +1246,32 @@ function rebuild3D(){
     group.position.set(f.wallX*INCH3D, f.wallY*INCH3D+globalVOff*INCH3D, 0);
     scene.add(group); pmeshes.push(group);
   }
-  document.getElementById('three-info').textContent=frames.length+' prints · WebGL';
+  // Prints are always centered at X=0 (from autoWallPos), so camera target stays at 0.
+  // Point camera Y at the vertical center of the print group.
+  if(pmeshes.length){
+    var avgY=0;
+    pmeshes.forEach(function(g){avgY+=g.position.y;});
+    avgY/=pmeshes.length;
+    camTgt.x=0; camTgt.y=avgY;
+    updateCam();
+  }
+  // Compute combined span: sum of print widths + gaps between them
+  if(frames.length){
+    // Sort frames by wallX to get left-to-right order
+    var sorted=frames.slice().sort(function(a,b){return a.wallX-b.wallX;});
+    // Total width = from left edge of leftmost to right edge of rightmost
+    var leftEdge=sorted[0].wallX-sorted[0].printW/2;
+    var rightEdge=sorted[sorted.length-1].wallX+sorted[sorted.length-1].printW/2;
+    var totalW=(rightEdge-leftEdge);
+    // Height: max printH
+    var maxH=frames.reduce(function(a,f){return Math.max(a,f.printH);},0);
+    var wFt=(totalW/12).toFixed(1), wIn=totalW.toFixed(1);
+    var hFt=(maxH/12).toFixed(1), hIn=maxH.toFixed(1);
+        var dimStr=frames.length+' prints  ·  '+wIn+'" ('+wFt+'ft) wide  ·  '+hIn+'" ('+hFt+'ft) tall';
+    document.getElementById('three-info').textContent=dimStr;
+  } else {
+    document.getElementById('three-info').textContent='WebGL';
+  }
 }
 
 function buildWrapMesh(group,f,uW,uH,depth3D){
@@ -1181,7 +1318,14 @@ function setFurn(t,btn){furnType=t;document.querySelectorAll('.fbtn').forEach(fu
 function setFurnC(el){document.querySelectorAll('#furnc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');furnColor=el.dataset.c;rebuildFurniture();}
 function onDepth(v){wrapDepth=parseFloat(v);document.getElementById('depth-v').textContent=v+'"';if(frameType==='wrap')renderEditor();rebuild3D();}
 function onVOff(v){globalVOff=parseFloat(v);document.getElementById('voff-v').textContent=parseFloat(v).toFixed(1)+'"';rebuild3D();}
-function resetCam(){camTheta=0;camPhi=0.4;camR=9;camTgt.set(0,0,0);updateCam();}
+function resetCam(){
+  camTheta=0;camPhi=0.4;camR=9;
+  var avgY=globalVOff*INCH3D; // default Y target at print height
+  if(pmeshes.length){
+    var sy=0; pmeshes.forEach(function(g){sy+=g.position.y;}); avgY=sy/pmeshes.length;
+  }
+  camTgt.set(0,avgY,0); updateCam();
+}
 
 // ═══════════════════════════════════════════════
 // DOWNLOAD
