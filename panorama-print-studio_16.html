@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PanoSplit Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+:root{
+  --bg:#0a0a0c;--surface:#111116;--panel:#16161e;--border:#2a2a38;
+  --accent:#e8b86d;--accent2:#6d9ee8;--text:#e8e8f0;--muted:#666680;
+  --success:#6de8a0;--wrap:#ff9f43;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
+  display:flex;flex-direction:column;}
+
+/* ── Upload overlay ── */
+#upload-zone{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:200;transition:opacity .4s;}
+#upload-zone.hidden{opacity:0;pointer-events:none;}
+.ubox{border:2px dashed var(--border);border-radius:4px;padding:50px 70px;text-align:center;
+  transition:all .2s;max-width:520px;width:90%;}
+.ubox:hover,.ubox.drag-over{border-color:var(--accent);background:rgba(232,184,109,0.04);}
+.utitle{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;color:var(--accent);margin-bottom:8px;}
+.usub{color:var(--muted);font-size:12px;margin-bottom:20px;}
+
+/* ── App shell ── */
+#app{display:none;flex-direction:column;flex:1;min-height:0;}
+#app.visible{display:flex;}
+
+header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surface);}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:var(--accent);}
+.logo-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;}
+.hc{display:flex;gap:8px;align-items:center;}
+
+/* ── Main workspace ── */
+#workspace{display:flex;flex:1;min-height:0;overflow:hidden;}
+
+/* ── Sidebar ── */
+#sidebar{width:250px;min-width:250px;flex-shrink:0;background:var(--panel);
+  border-right:1px solid var(--border);overflow-y:auto;padding:12px;
+  display:flex;flex-direction:column;gap:14px;}
+
+/* ── Center column: two panels stacked ── */
+#center{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;}
+
+/* ── Each panel is a flex row: header bar + canvas ── */
+.panel{flex:1;display:flex;flex-direction:column;min-height:0;position:relative;}
+.panel-top{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px;background:rgba(7,7,15,0.95);border-bottom:1px solid var(--border);
+  font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;z-index:5;}
+#editor-wrap{flex:1;background:#07070f;overflow:hidden;position:relative;border-bottom:1px solid var(--border);}
+#editor-canvas{display:block;} /* sized by JS to match wrapper */
+#three-wrap{flex:1;background:#040408;overflow:hidden;position:relative;}
+/* Three.js canvas will be appended here and sized to match */
+
+.hint{position:absolute;bottom:8px;right:10px;font-family:'DM Mono',monospace;font-size:9px;
+  color:var(--muted);pointer-events:none;opacity:.45;letter-spacing:1px;}
+
+/* ── Status bar ── */
+#statusbar{flex-shrink:0;display:flex;align-items:center;gap:14px;padding:5px 14px;
+  background:var(--surface);border-top:1px solid var(--border);
+  font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;margin-right:4px;}
+
+/* ── UI components ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  border:1px solid var(--border);background:var(--panel);color:var(--text);
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;cursor:pointer;
+  border-radius:2px;transition:all .15s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn.primary{background:var(--accent);color:#000;border-color:var(--accent);}
+.btn.primary:hover{background:#f5cc8a;}
+.btn.secondary{border-color:var(--accent2);color:var(--accent2);}
+
+.sec{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);
+  text-transform:uppercase;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+.field{margin-bottom:9px;}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-family:'DM Mono',monospace;}
+.field input[type="number"],.field input[type="range"],.field select{
+  width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:2px;font-family:'DM Mono',monospace;font-size:12px;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
+.field select option,.field select optgroup{background:var(--panel);color:var(--text);}
+.field input[type="range"]{padding:3px 0;accent-color:var(--accent);}
+.vd{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);float:right;}
+
+.frame-list{display:flex;flex-direction:column;gap:5px;}
+.fi{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:7px 9px;cursor:pointer;}
+.fi:hover{border-color:var(--accent);}
+.fi.sel{border-color:var(--accent);background:rgba(232,184,109,0.06);}
+.fi-top{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+.fi-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.fi-name{font-family:'DM Mono',monospace;font-size:11px;flex:1;}
+.fi-px{font-size:10px;color:var(--muted);}
+.fi-g2{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.fi-g2>div{display:flex;flex-direction:column;gap:2px;}
+.fi-g2 label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-align:center;}
+.fi-g2 input[type="number"]{background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:3px 5px;border-radius:2px;font-family:'DM Mono',monospace;font-size:11px;text-align:center;width:100%;}
+.fi-g2 input[type="number"]:focus{outline:none;border-color:var(--accent);}
+.wall-row{display:flex;align-items:center;gap:5px;margin-top:4px;}
+.wall-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:12px;flex-shrink:0;}
+.wall-range{flex:1;accent-color:var(--accent);}
+.wall-num{width:48px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);padding:3px 4px;border-radius:2px;font-family:'DM Mono',monospace;
+  font-size:11px;text-align:center;}
+.wall-num:focus{outline:none;border-color:var(--accent);}
+.fi-section{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;
+  margin:6px 0 4px;padding-top:6px;border-top:1px solid var(--border);}
+
+.crow{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.cs{width:18px;height:18px;border-radius:2px;cursor:pointer;border:2px solid transparent;}
+.cs.act{border-color:var(--text);}
+.tg{display:flex;border:1px solid var(--border);border-radius:2px;overflow:hidden;}
+.tgb{flex:1;padding:5px 2px;background:var(--bg);color:var(--muted);border:none;cursor:pointer;
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;}
+.tgb.act{background:var(--accent);color:#000;}
+.tgb.act-wrap{background:var(--wrap);color:#000;}
+.furn-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px;}
+.fbtn{padding:7px 4px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  border-radius:2px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;text-align:center;}
+.fbtn:hover,.fbtn.act{border-color:var(--accent);color:var(--accent);}
+.fbtn.act{background:rgba(232,184,109,0.08);}
+.mtabs{display:flex;gap:5px;margin-bottom:10px;}
+.mtab{flex:1;padding:7px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  border-radius:2px;cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;text-align:center;}
+.mtab.act{background:rgba(232,184,109,0.12);border-color:var(--accent);color:var(--accent);}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px;}
+.tbtn{padding:6px 3px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  border-radius:2px;cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;text-align:center;}
+.tbtn:hover,.tbtn.act{border-color:var(--accent);color:var(--accent);}
+.tbtn.act{background:rgba(232,184,109,0.08);}
+.ibox{background:rgba(109,158,232,0.06);border:1px solid var(--border);padding:8px;
+  border-radius:2px;font-size:11px;color:var(--muted);line-height:1.7;}
+.wrap-badge{display:inline-block;background:rgba(255,159,67,0.15);border:1px solid var(--wrap);
+  color:var(--wrap);font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:2px;}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);
+  background:var(--accent);color:#000;padding:9px 18px;border-radius:2px;
+  font-family:'DM Mono',monospace;font-size:11px;transition:transform .3s;z-index:999;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- Upload -->
+<div id="upload-zone">
+  <div class="ubox" id="dz">
+    <div style="font-size:42px;margin-bottom:14px;opacity:.5">🖼</div>
+    <div class="utitle">Upload Panorama</div>
+    <div class="usub">Drag &amp; drop or click — JPEG, PNG, TIFF<br>Recommended 8000px+ width</div>
+    <button class="btn primary" onclick="document.getElementById('fi').click()">⬆ Choose File</button>
+    <input type="file" id="fi" accept="image/*" style="display:none">
+  </div>
+  <p style="margin-top:16px;color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;">PANOSPLIT STUDIO · v6</p>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <div><div class="logo">⬛ PanoSplit</div><div class="logo-sub">Panorama Print Studio</div></div>
+    <div class="hc">
+      <span id="img-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)"></span>
+      <button class="btn" onclick="document.getElementById('fi').click()">⬆ New</button>
+      <button class="btn secondary" onclick="downloadFrames()">⬇ Download</button>
+    </div>
+  </header>
+
+  <div id="workspace">
+    <!-- Sidebar -->
+    <div id="sidebar">
+
+      <div>
+        <div class="sec">Layout Mode</div>
+        <div class="mtabs">
+          <div class="mtab act" id="tab-t" onclick="setMode('template')">TEMPLATES</div>
+          <div class="mtab" id="tab-f" onclick="setMode('free')">FREE</div>
+        </div>
+        <div id="tmpl-ui">
+          <div class="field">
+            <label>Number of Prints</label>
+            <input type="number" id="num-p" value="3" min="1" max="10" onchange="applyTemplate()">
+          </div>
+          <div class="field">
+            <label>Template</label>
+            <div class="tgrid">
+              <div class="tbtn act" data-t="even"    onclick="pickT(this)">EVEN</div>
+              <div class="tbtn"     data-t="stair"   onclick="pickT(this)">STAIR</div>
+              <div class="tbtn"     data-t="wide"    onclick="pickT(this)">WIDE MID</div>
+              <div class="tbtn"     data-t="tall"    onclick="pickT(this)">TALL MID</div>
+              <div class="tbtn"     data-t="pyramid" onclick="pickT(this)">PYRAMID</div>
+              <div class="tbtn"     data-t="strip"   onclick="pickT(this)">STRIP</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Default Print Size</label>
+            <select id="print-size-sel" onchange="onPrintSizePreset(this.value)">
+              <option value="custom">Custom</option>
+              <optgroup label="Square">
+                <option value="8x8">8×8"</option>
+                <option value="10x10">10×10"</option>
+                <option value="12x12">12×12"</option>
+                <option value="16x16">16×16"</option>
+                <option value="20x20">20×20"</option>
+              </optgroup>
+              <optgroup label="Landscape">
+                <option value="4x6">4×6"</option>
+                <option value="5x7">5×7"</option>
+                <option value="8x10">8×10"</option>
+                <option value="8x12">8×12"</option>
+                <option value="10x20" selected>10×20"</option>
+                <option value="12x18">12×18"</option>
+                <option value="12x24">12×24"</option>
+                <option value="16x20">16×20"</option>
+                <option value="16x24">16×24"</option>
+                <option value="20x24">20×24"</option>
+                <option value="20x30">20×30"</option>
+                <option value="24x36">24×36"</option>
+              </optgroup>
+              <optgroup label="Portrait">
+                <option value="6x4">6×4"</option>
+                <option value="7x5">7×5"</option>
+                <option value="10x8">10×8"</option>
+                <option value="12x8">12×8"</option>
+                <option value="18x12">18×12"</option>
+                <option value="20x10">20×10"</option>
+                <option value="20x12">20×12"</option>
+                <option value="20x16">20×16"</option>
+                <option value="24x12">24×12"</option>
+                <option value="24x16">24×16"</option>
+                <option value="24x20">24×20"</option>
+                <option value="30x20">30×20"</option>
+                <option value="36x24">36×24"</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field" id="custom-size-row" style="display:none">
+            <label>Custom Size (in)</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="number" id="custom-w" value="20" min="1" max="120" step="0.5" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:2px;font-family:'DM Mono',monospace;font-size:12px;" onchange="onCustomSize()">
+              <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;">×</span>
+              <input type="number" id="custom-h" value="10" min="1" max="120" step="0.5" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:2px;font-family:'DM Mono',monospace;font-size:12px;" onchange="onCustomSize()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Gap (in) <span class="vd" id="gap-v">1.0"</span></label>
+            <input type="range" id="gap-r" min="0" max="12" value="1" step="0.25" oninput="onGap(this.value)">
+          </div>
+        </div>
+        <div id="free-ui" style="display:none">
+          <div class="ibox">• Drag crops to move<br>• Corner handles to resize</div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button class="btn" style="flex:1;justify-content:center;font-size:10px" onclick="addFrame()">+ Add</button>
+            <button class="btn" style="flex:1;justify-content:center;font-size:10px" onclick="removeFrame()">− Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec">Panorama Canvas Scale</div>
+        <div class="field">
+          <label>Total Width (in) <span class="vd" id="pcw-v">120"</span></label>
+          <input type="range" id="pcw-r" min="12" max="600" value="120" step="1" oninput="onPanoCanvasW(this.value)">
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+          <input type="number" id="pcw-n" value="120" min="6" max="2400" step="1"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:2px;font-family:'DM Mono',monospace;font-size:12px;"
+            onchange="onPanoCanvasWn(this.value)">
+          <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;">in wide</span>
+        </div>
+        <div id="pano-dpi-info" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);line-height:1.6;"></div>
+        <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">
+          <button onclick="setPCW(60)"  class="btn" style="flex:1;justify-content:center;font-size:9px;padding:4px;">5ft</button>
+          <button onclick="setPCW(96)"  class="btn" style="flex:1;justify-content:center;font-size:9px;padding:4px;">8ft</button>
+          <button onclick="setPCW(120)" class="btn" style="flex:1;justify-content:center;font-size:9px;padding:4px;">10ft</button>
+          <button onclick="setPCW(144)" class="btn" style="flex:1;justify-content:center;font-size:9px;padding:4px;">12ft</button>
+          <button onclick="setPCW(240)" class="btn" style="flex:1;justify-content:center;font-size:9px;padding:4px;">20ft</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec">Prints</div>
+        <div class="frame-list" id="frame-list"></div>
+
+      </div>
+
+      <div>
+        <div class="sec">Frame Style</div>
+        <div class="field">
+          <div class="tg" id="ft-tg">
+            <button class="tgb act"  onclick="setFT('canvas',this)">CANVAS</button>
+            <button class="tgb"      onclick="setFT('wrap',this)">WRAP</button>
+            <button class="tgb"      onclick="setFT('float',this)">FLOAT</button>
+            <button class="tgb"      onclick="setFT('bare',this)">BARE</button>
+          </div>
+        </div>
+        <div id="wrap-info" style="display:none;margin-bottom:8px;">
+          <div class="wrap-badge">WRAP-AROUND MODE</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.6;font-family:'DM Mono',monospace;">Orange border = wrap region.</div>
+        </div>
+        <div class="field">
+          <label>Depth (in) <span class="vd" id="depth-v">1.5"</span></label>
+          <input type="range" id="depth-r" min="0.25" max="4" step="0.25" value="1.5" oninput="onDepth(this.value)">
+        </div>
+        <div class="field">
+          <label>Frame Color</label>
+          <div class="crow" id="fc-row">
+            <div class="cs act" style="background:#1a1a1a" data-c="#1a1a1a" onclick="setFC(this)"></div>
+            <div class="cs" style="background:#2c1f0e" data-c="#2c1f0e" onclick="setFC(this)"></div>
+            <div class="cs" style="background:#f0ebe4" data-c="#f0ebe4" onclick="setFC(this)"></div>
+            <div class="cs" style="background:#8B6914" data-c="#8B6914" onclick="setFC(this)"></div>
+            <div class="cs" style="background:#38384a" data-c="#38384a" onclick="setFC(this)"></div>
+            <div class="cs" style="background:#8b2020" data-c="#8b2020" onclick="setFC(this)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec">Wall</div>
+        <div class="field">
+          <label>Wall Color</label>
+          <div class="crow" id="wc-row">
+            <div class="cs act" style="background:#d4cfc9" data-c="#d4cfc9" onclick="setWC(this)"></div>
+            <div class="cs" style="background:#1c1c2e" data-c="#1c1c2e" onclick="setWC(this)"></div>
+            <div class="cs" style="background:#2c3e50" data-c="#2c3e50" onclick="setWC(this)"></div>
+            <div class="cs" style="background:#f5e6d3" data-c="#f5e6d3" onclick="setWC(this)"></div>
+            <div class="cs" style="background:#8B7355" data-c="#8B7355" onclick="setWC(this)"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Grid</label>
+          <div class="tg">
+            <button class="tgb act" id="grid-off" onclick="setGrid('none',this)">OFF</button>
+            <button class="tgb" id="grid-in" onclick="setGrid('inches',this)">INCHES</button>
+            <button class="tgb" id="grid-ft" onclick="setGrid('feet',this)">FEET</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Global Y Offset (in) <span class="vd" id="voff-v">0"</span></label>
+          <input type="range" id="voff-r" min="-40" max="40" step="0.5" value="0" oninput="onVOff(this.value)">
+        </div>
+      </div>
+
+      <div>
+        <div class="sec">Furniture</div>
+        <div class="furn-grid">
+          <div class="fbtn act" data-f="none"    onclick="setFurn('none',this)">— NONE —</div>
+          <div class="fbtn" data-f="sofa"    onclick="setFurn('sofa',this)">🛋 SOFA</div>
+          <div class="fbtn" data-f="console" onclick="setFurn('console',this)">🪑 CONSOLE</div>
+          <div class="fbtn" data-f="bed"     onclick="setFurn('bed',this)">🛏 BED</div>
+          <div class="fbtn" data-f="desk"    onclick="setFurn('desk',this)">🖥 DESK</div>
+          <div class="fbtn" data-f="lamp"    onclick="setFurn('lamp',this)">💡 LAMP</div>
+          <div class="fbtn" data-f="plant"   onclick="setFurn('plant',this)">🌿 PLANT</div>
+        </div>
+        <div class="field" style="margin-top:8px;">
+          <label>Furniture Color</label>
+          <div class="crow" id="furnc-row">
+            <div class="cs act" style="background:#5a4a3a" data-c="#5a4a3a" onclick="setFurnC(this)"></div>
+            <div class="cs" style="background:#8a7a6a" data-c="#8a7a6a" onclick="setFurnC(this)"></div>
+            <div class="cs" style="background:#2a2a3a" data-c="#2a2a3a" onclick="setFurnC(this)"></div>
+            <div class="cs" style="background:#c8b89a" data-c="#c8b89a" onclick="setFurnC(this)"></div>
+            <div class="cs" style="background:#3a5a3a" data-c="#3a5a3a" onclick="setFurnC(this)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:auto;padding-top:4px;">
+        <button class="btn primary" style="width:100%;justify-content:center;margin-bottom:7px" onclick="downloadFrames()">⬇ Download Prints</button>
+        <button class="btn" style="width:100%;justify-content:center" onclick="resetCam()">↺ Reset 3D View</button>
+      </div>
+    </div><!-- /sidebar -->
+
+    <!-- Center: two panels -->
+    <div id="center">
+      <!-- Crop editor panel -->
+      <div class="panel" style="border-bottom:1px solid var(--border);">
+        <div class="panel-top">
+          <span id="mode-lbl">📐 TEMPLATE MODE</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span id="cv-info" style="color:var(--accent);font-size:10px;"></span>
+            <span style="color:var(--border)">│</span>
+            <button onclick="zoomEditor(0.5)" title="Zoom to 50%" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:1px 4px;border-radius:2px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">50%</button>
+            <button onclick="zoomEditorFit()" title="Fit to window" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:1px 4px;border-radius:2px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">FIT</button>
+            <button onclick="zoomEditor(1)" title="Zoom to 100%" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:1px 4px;border-radius:2px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">100%</button>
+            <button onclick="zoomEditor(2)" title="Zoom to 200%" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:1px 4px;border-radius:2px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">200%</button>
+            <span style="color:var(--border)">│</span>
+            <button onclick="zoomStep(-1)" title="Zoom out" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:1px 4px;line-height:1;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">−</button>
+            <span id="zoom-pct" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);min-width:36px;text-align:center;cursor:pointer;" onclick="promptZoom()" title="Click to enter zoom %">100%</span>
+            <button onclick="zoomStep(1)" title="Zoom in" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:1px 4px;line-height:1;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">+</button>
+          </span>
+        </div>
+        <div id="editor-wrap">
+          <canvas id="editor-canvas"></canvas>
+          <div class="hint">DRAG TO MOVE · CORNERS TO RESIZE · SCROLL ZOOM</div>
+        </div>
+      </div>
+      <!-- 3D preview panel -->
+      <div class="panel">
+        <div class="panel-top">
+          <span>🎨 3D PREVIEW</span>
+          <span id="three-info" style="color:var(--accent2)">WebGL</span>
+        </div>
+        <div id="three-wrap">
+          <!-- Three.js canvas appended here by JS -->
+          <div class="hint">LEFT-DRAG ORBIT · RIGHT-DRAG PAN · SCROLL ZOOM</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /workspace -->
+
+  <div id="statusbar">
+    <span><span class="sdot"></span>Ready</span>
+    <span id="st-res"></span><span id="st-n"></span><span id="st-dpi"></span>
+  </div>
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+var INCH3D = 0.1;
+var COLS = ['#e8b86d','#6d9ee8','#6de8b0','#e86d9e','#b86de8','#e8e86d','#6de8e8','#e8b0b0','#b0e8b0','#d0b0e8'];
+var panoImg=null, frames=[], selIdx=-1;
+var defaultPrintW=10, defaultPrintH=20; // default print size in inches for templates
+var panoCanvasW=120; // physical width of full panorama in inches (user-controlled)
+var layoutMode='template', activeTmpl='even', gapInches=1, dpiTarget=300;
+
+// DPI = panoImg.width / panoCanvasW — single source of truth
+function panoDPI(){ return panoImg ? panoImg.width/panoCanvasW : 300; }
+// Physical height of panorama in inches
+function panoCanvasH(){ return panoImg ? (panoImg.height/panoImg.width)*panoCanvasW : 60; }
+var frameType='canvas', frameColor='#1a1a1a', wallColor='#d4cfc9';
+var wrapDepth=1.5, globalVOff=0, gridMode='none', furnType='none', furnColor='#5a4a3a';
+
+// ═══════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════
+var dzEl=document.getElementById('dz');
+document.getElementById('fi').addEventListener('change',function(e){
+  if(e.target.files&&e.target.files[0]) loadFile(e.target.files[0]);
+});
+dzEl.addEventListener('dragover',function(e){e.preventDefault();dzEl.classList.add('drag-over');});
+dzEl.addEventListener('dragleave',function(){dzEl.classList.remove('drag-over');});
+dzEl.addEventListener('drop',function(e){
+  e.preventDefault();dzEl.classList.remove('drag-over');
+  if(e.dataTransfer.files&&e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+function loadFile(file){
+  var url=URL.createObjectURL(file);
+  var image=new Image();
+  image.onload=function(){
+    panoImg=image;
+    document.getElementById('upload-zone').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    document.getElementById('img-info').textContent=image.width+'×'+image.height+'px · '+(file.size/1024/1024).toFixed(1)+'MB';
+    // The app div just became display:flex. We need one browser layout pass
+    // before reading element sizes. requestAnimationFrame fires after paint.
+    requestAnimationFrame(function(){
+      // By this point flex layout has run and #editor-wrap / #three-wrap have real pixel sizes
+      initEditor();
+      initThree();
+      applyTemplate();
+      updatePanoDPIInfo();
+    });
+  };
+  image.onerror=function(){alert('Could not load image.');};
+  image.src=url;
+}
+
+// ═══════════════════════════════════════════════
+// LAYOUT MODE
+// ═══════════════════════════════════════════════
+function setMode(m){
+  layoutMode=m;
+  document.getElementById('tab-t').classList.toggle('act',m==='template');
+  document.getElementById('tab-f').classList.toggle('act',m==='free');
+  document.getElementById('tmpl-ui').style.display=m==='template'?'':'none';
+  document.getElementById('free-ui').style.display=m==='free'?'':'none';
+  document.getElementById('mode-lbl').textContent=m==='template'
+    ?'📐 TEMPLATE MODE — drag to reposition'
+    :'📐 FREE MODE — drag body · corners to resize';
+  if(m==='template') applyTemplate(); else renderEditor();
+}
+
+// ═══════════════════════════════════════════════
+// TEMPLATES
+// ═══════════════════════════════════════════════
+function pickT(el){
+  document.querySelectorAll('.tbtn').forEach(function(b){b.classList.remove('act');});
+  el.classList.add('act'); activeTmpl=el.dataset.t; applyTemplate();
+}
+function gapPxVal(){
+  // Gap in pixels = gapInches * DPI where DPI = panoImg.width / panoCanvasW
+  return gapInches * panoDPI();
+}
+
+function applyTemplate(){
+  if(!panoImg) return;
+  var n=Math.max(1,parseInt(document.getElementById('num-p').value)||3);
+  var IW=panoImg.width,IH=panoImg.height,g=gapPxVal();
+  frames=[];
+  function mkF(x,y,w,h,i){
+    // Crop pixels = print inches * DPI (DPI = panoImg.width / panoCanvasW)
+    var dpi=panoDPI();
+    var pw=defaultPrintW, ph=defaultPrintH;
+    var cropW=Math.round(pw*dpi); // crop width in pixels
+    var cropH=Math.round(ph*dpi); // crop height in pixels
+    // Use the crop pixel size — x is the starting x, centered on y
+    var midY=y+h/2;
+    var newY=Math.max(0, midY-cropH/2);
+    if(newY+cropH>panoImg.height) newY=Math.max(0,panoImg.height-cropH);
+    frames.push({x:x,y:newY,w:cropW,h:cropH,printW:pw,printH:ph,wallX:0,wallY:0,color:COLS[i%COLS.length]});
+  }
+  if(activeTmpl==='even'){
+    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal(); for(var i=0;i<n;i++) mkF(i*(fw+g2),0,fw,IH,i);
+  } else if(activeTmpl==='stair'){
+    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal();
+    for(var i=0;i<n;i++){var yo=i*IH*0.12,h=Math.max(IH*0.35,IH-yo*1.4);mkF(i*(fw+g2),Math.min(yo*0.4,IH-h),fw,Math.min(h,IH),i);}
+  } else if(activeTmpl==='wide'){
+    var dpi=panoDPI(),g2=gapPxVal();
+    if(n===1){mkF(0,0,Math.round(defaultPrintW*dpi),IH,0);}else{
+      var mi=Math.floor(n/2),mfw=Math.round(defaultPrintW*1.8*dpi),sfw=Math.round(defaultPrintW*dpi),cx=0;
+      for(var i=0;i<n;i++){var fw=(i===mi)?mfw:sfw;mkF(cx,0,fw,IH,i);cx+=fw+g2;}
+    }
+  } else if(activeTmpl==='tall'){
+    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal(),mi=Math.floor(n/2);
+    for(var i=0;i<n;i++){if(i===mi)mkF(i*(fw+g2),0,fw,IH,i);else{var h=IH*0.6,y=(IH-h)/2;mkF(i*(fw+g2),y,fw,h,i);}}
+  } else if(activeTmpl==='pyramid'){
+    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal();
+    for(var i=0;i<n;i++){var d=Math.abs(i-(n-1)/2)/Math.max(1,(n-1)/2),h=IH*(0.44+0.56*(1-d)),y=(IH-h)/2;mkF(i*(fw+g2),y,fw,h,i);}
+  } else if(activeTmpl==='strip'){
+    var dpi=panoDPI(),fw=Math.round(defaultPrintW*dpi),g2=gapPxVal(),h=IH*0.38,y=(IH-h)/2; for(var i=0;i<n;i++) mkF(i*(fw+g2),y,fw,h,i);
+  }
+  frames.forEach(function(f){clampF(f);}); autoWallPos(); selIdx=-1;
+  rebuildList(); renderEditor(); rebuild3D(); updateStatus(); updatePanoDPIInfo();
+}
+
+function clampF(f){
+  if(!panoImg) return;
+  f.w=Math.max(4,f.w); f.h=Math.max(4,f.h);
+  f.x=Math.max(0,Math.min(panoImg.width-f.w,f.x));
+  f.y=Math.max(0,Math.min(panoImg.height-f.h,f.y));
+}
+function autoWallPos(){
+  // With panoCanvasW as master: 1 image pixel = 1/panoDPI() inches.
+  // So wall position in inches = crop_center_pixel / panoDPI() - panoCanvasW/2 (centered)
+  if(!frames.length||!panoImg) return;
+  var dpi=panoDPI();
+  var canvasCX=panoImg.width/2, canvasCY=panoImg.height/2;
+  frames.forEach(function(f){
+    var fcx=f.x+f.w/2, fcy=f.y+f.h/2;
+    f.wallX=(fcx-canvasCX)/dpi;
+    f.wallY=-(fcy-canvasCY)/dpi;
+  });
+}
+
+// FREE
+function addFrame(){
+  if(!panoImg) return;
+  var i=frames.length,fw=panoImg.width*0.28,fh=panoImg.height*0.75;
+  frames.push({x:Math.random()*(panoImg.width-fw),y:panoImg.height*0.1,w:fw,h:fh,
+    printW:16,printH:16*(fh/fw),wallX:0,wallY:0,color:COLS[i%COLS.length]});
+  autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus();
+}
+function removeFrame(){
+  if(!frames.length) return;
+  if(selIdx>=0&&selIdx<frames.length) frames.splice(selIdx,1); else frames.pop();
+  selIdx=Math.min(selIdx,frames.length-1);
+  rebuildList(); renderEditor(); rebuild3D(); updateStatus();
+}
+
+// ═══════════════════════════════════════════════
+// CALLBACKS
+// ═══════════════════════════════════════════════
+function onInchChange(i,axis,val){
+  var f=frames[i]; if(!f) return;
+  var v=parseFloat(val); if(!v||v<=0) return;
+  // Crop pixels = new print inches * current DPI (panoCanvasW unchanged)
+  var dpi=panoDPI();
+  if(axis==='w'){f.printW=v; f.w=Math.round(v*dpi);}
+  else{f.printH=v; f.h=Math.round(v*dpi);}
+  clampF(f);
+  autoWallPos();
+  rebuildList(); renderEditor(); rebuild3D(); updateStatus();
+}
+function onWX(idx,val){var f=frames[idx];if(!f)return;f.wallX=parseFloat(val);var e=document.getElementById('wx-n-'+idx);if(e)e.value=f.wallX.toFixed(1);rebuild3D();}
+function onWY(idx,val){var f=frames[idx];if(!f)return;f.wallY=parseFloat(val);var e=document.getElementById('wy-n-'+idx);if(e)e.value=f.wallY.toFixed(1);rebuild3D();}
+function onWXn(idx,val){var f=frames[idx];if(!f)return;var v=parseFloat(val);if(isNaN(v))return;f.wallX=v;var r=document.getElementById('wx-r-'+idx);if(r)r.value=v.toFixed(1);rebuild3D();}
+function onWYn(idx,val){var f=frames[idx];if(!f)return;var v=parseFloat(val);if(isNaN(v))return;f.wallY=v;var r=document.getElementById('wy-r-'+idx);if(r)r.value=v.toFixed(1);rebuild3D();}
+function onDPI(v){/* DPI slider removed */}
+function onGap(v){gapInches=parseFloat(v);document.getElementById('gap-v').textContent=parseFloat(v).toFixed(2)+'"';if(layoutMode==='template') applyTemplate();}
+
+function onPanoCanvasW(v){
+  panoCanvasW=parseFloat(v)||120;
+  var ni=document.getElementById('pcw-n'); if(ni) ni.value=panoCanvasW;
+  document.getElementById('pcw-v').textContent=panoCanvasW+'"';
+  updatePanoDPIInfo();
+  if(layoutMode==='template') applyTemplate(); else { frames.forEach(function(f){rescaleCropByDPI(f);}); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus(); }
+}
+function onPanoCanvasWn(v){
+  var val=parseFloat(v); if(!val||val<=0) return;
+  panoCanvasW=val;
+  var ri=document.getElementById('pcw-r'); if(ri){ ri.min=Math.min(ri.min,val); ri.max=Math.max(ri.max,val); ri.value=val; }
+  document.getElementById('pcw-v').textContent=val+'"';
+  updatePanoDPIInfo();
+  if(layoutMode==='template') applyTemplate(); else { frames.forEach(function(f){rescaleCropByDPI(f);}); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus(); }
+}
+function setPCW(inches){
+  panoCanvasW=inches;
+  var ri=document.getElementById('pcw-r'); if(ri) ri.value=inches;
+  var ni=document.getElementById('pcw-n'); if(ni) ni.value=inches;
+  document.getElementById('pcw-v').textContent=inches+'"';
+  updatePanoDPIInfo();
+  if(layoutMode==='template') applyTemplate(); else { frames.forEach(function(f){rescaleCropByDPI(f);}); autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus(); }
+}
+function updatePanoDPIInfo(){
+  var el=document.getElementById('pano-dpi-info'); if(!el||!panoImg) return;
+  var dpi=panoDPI();
+  var h=panoCanvasH();
+  el.textContent=Math.round(dpi)+' DPI  ·  '+panoCanvasW.toFixed(0)+'"×'+h.toFixed(0)+'" canvas';
+}
+// Rescale a frame's crop pixels when panoCanvasW changes (free mode)
+function rescaleCropByDPI(f){
+  var newDPI=panoDPI();
+  f.w=Math.round(f.printW*newDPI);
+  f.h=Math.round(f.printH*newDPI);
+  clampF(f);
+}
+function onPrintSizePreset(val){
+  if(val==='custom'){
+    document.getElementById('custom-size-row').style.display='';
+    return;
+  }
+  document.getElementById('custom-size-row').style.display='none';
+  var parts=val.split('x');
+  defaultPrintW=parseFloat(parts[0]);
+  defaultPrintH=parseFloat(parts[1]);
+  document.getElementById('custom-w').value=defaultPrintW;
+  document.getElementById('custom-h').value=defaultPrintH;
+  applyPrintSizeToFrames();
+}
+function onCustomSize(){
+  var w=parseFloat(document.getElementById('custom-w').value)||10;
+  var h=parseFloat(document.getElementById('custom-h').value)||20;
+  defaultPrintW=w; defaultPrintH=h;
+  applyPrintSizeToFrames();
+}
+// Apply the chosen print size to existing frames:
+// - Set printW, printH to the chosen physical size
+// - Recalc f.h (crop pixels) to match the new aspect ratio, keeping f.w unchanged
+// - This preserves the horizontal crop position/width, just adjusts the height
+// - DPI per frame = f.w / printW (computed naturally, no global dpiTarget needed)
+function applyPrintSizeToFrames(){
+  if(!frames.length||!panoImg){ if(layoutMode==='template') applyTemplate(); return; }
+  var dpi=panoDPI();
+  frames.forEach(function(f){
+    f.printW=defaultPrintW;
+    f.printH=defaultPrintH;
+    // Recalc crop pixels from print inches * DPI, centered
+    var newW=Math.round(f.printW*dpi);
+    var newH=Math.round(f.printH*dpi);
+    var midX=f.x+f.w/2, midY=f.y+f.h/2;
+    f.w=newW; f.h=newH;
+    f.x=midX-newW/2; f.y=midY-newH/2;
+    clampF(f);
+  });
+  autoWallPos();
+  rebuildList(); renderEditor(); rebuild3D(); updateStatus();
+}
+function wrapPxVal(){ return Math.round(wrapDepth*panoDPI()); }
+function outerCrop(f){
+  if(frameType!=='wrap') return {x:f.x,y:f.y,w:f.w,h:f.h};
+  var wp=wrapPxVal(),ox=Math.max(0,f.x-wp),oy=Math.max(0,f.y-wp);
+  return {x:ox,y:oy,w:Math.min(panoImg.width,f.x+f.w+wp)-ox,h:Math.min(panoImg.height,f.y+f.h+wp)-oy};
+}
+
+// ═══════════════════════════════════════════════
+// 2D EDITOR
+// Key: #editor-wrap is a normal flex child with flex:1,
+// so its clientWidth/clientHeight are always real numbers.
+// ═══════════════════════════════════════════════
+var edCv=document.getElementById('editor-canvas');
+var edCtx=edCv.getContext('2d');
+var eW=1,eH=1,cScale=1,cOX=0,cOY=0;
+var dragSt=null,panning=false,panSX=0,panSY=0;
+var HR=8;
+
+function initEditor(){
+  sizeEditor();
+  new ResizeObserver(function(){sizeEditor();}).observe(document.getElementById('editor-wrap'));
+  edCv.addEventListener('mousedown',edDown);
+  edCv.addEventListener('mousemove',edMove);
+  edCv.addEventListener('mouseup',edUp);
+  edCv.addEventListener('mouseleave',edUp);
+  edCv.addEventListener('wheel',edWheel,{passive:false});
+}
+
+function sizeEditor(){
+  var wrap=document.getElementById('editor-wrap');
+  var w=wrap.clientWidth, h=wrap.clientHeight;
+  if(w<2||h<2) return;
+  eW=w; eH=h;
+  edCv.width=eW; edCv.height=eH;
+  edCv.style.width=eW+'px'; edCv.style.height=eH+'px';
+  fitImg(); updateZoomDisplay(); renderEditor();
+}
+
+function fitImg(){
+  if(!panoImg) return;
+  var pad=28;
+  cScale=Math.min((eW-pad*2)/panoImg.width,(eH-pad*2)/panoImg.height);
+  cOX=(eW-panoImg.width*cScale)/2; cOY=(eH-panoImg.height*cScale)/2;
+}
+
+function renderEditor(){
+  if(!panoImg||eW<2||eH<2) return;
+  edCtx.clearRect(0,0,eW,eH);
+  edCtx.fillStyle='#07070f'; edCtx.fillRect(0,0,eW,eH);
+  edCtx.strokeStyle='#131322'; edCtx.lineWidth=1;
+  for(var x=0;x<eW;x+=20){edCtx.beginPath();edCtx.moveTo(x,0);edCtx.lineTo(x,eH);edCtx.stroke();}
+  for(var y=0;y<eH;y+=20){edCtx.beginPath();edCtx.moveTo(0,y);edCtx.lineTo(eW,y);edCtx.stroke();}
+  var iw=panoImg.width*cScale,ih=panoImg.height*cScale;
+  edCtx.shadowBlur=16;edCtx.shadowColor='rgba(0,0,0,0.8)';
+  edCtx.fillStyle='#000';edCtx.fillRect(cOX,cOY,iw,ih);edCtx.shadowBlur=0;
+  edCtx.drawImage(panoImg,cOX,cOY,iw,ih);
+  edCtx.fillStyle='rgba(0,0,0,0.42)';edCtx.fillRect(cOX,cOY,iw,ih);
+  for(var i=0;i<frames.length;i++){
+    var f=frames[i],sx=cOX+f.x*cScale,sy=cOY+f.y*cScale,sw=f.w*cScale,sh=f.h*cScale;
+    var col=f.color,isSel=(i===selIdx);
+    if(frameType==='wrap'){
+      var oc=outerCrop(f);
+      var osx=cOX+oc.x*cScale,osy=cOY+oc.y*cScale,osw=oc.w*cScale,osh=oc.h*cScale;
+      edCtx.save();edCtx.beginPath();edCtx.rect(osx,osy,osw,osh);edCtx.clip();
+      edCtx.drawImage(panoImg,cOX,cOY,iw,ih);edCtx.restore();
+      edCtx.fillStyle='rgba(255,159,67,0.09)';edCtx.fillRect(osx,osy,osw,osh);
+      edCtx.strokeStyle='#ff9f43';edCtx.lineWidth=1.5;edCtx.setLineDash([4,3]);
+      edCtx.strokeRect(osx+.5,osy+.5,osw-1,osh-1);edCtx.setLineDash([]);
+    }
+    edCtx.save();edCtx.beginPath();edCtx.rect(sx,sy,sw,sh);edCtx.clip();
+    edCtx.drawImage(panoImg,cOX,cOY,iw,ih);edCtx.restore();
+    edCtx.strokeStyle=col;edCtx.lineWidth=isSel?2.5:1.8;
+    edCtx.setLineDash(isSel?[]:[5,3]);edCtx.strokeRect(sx+.5,sy+.5,sw-1,sh-1);edCtx.setLineDash([]);
+    edCtx.fillStyle=col;edCtx.fillRect(sx,sy,40,16);
+    edCtx.fillStyle='#000';edCtx.font='bold 10px DM Mono,monospace';edCtx.fillText('P'+(i+1),sx+5,sy+11);
+    edCtx.fillStyle=col;edCtx.font='9px DM Mono,monospace';
+    edCtx.fillText(f.printW.toFixed(1)+'"×'+f.printH.toFixed(1)+'"',sx+4,sy+sh-5);
+    var corners=[[sx,sy],[sx+sw,sy],[sx,sy+sh],[sx+sw,sy+sh]];
+    for(var c=0;c<4;c++){
+      edCtx.fillStyle=isSel?col:col+'77';
+      edCtx.beginPath();edCtx.arc(corners[c][0],corners[c][1],isSel?HR:5,0,Math.PI*2);edCtx.fill();
+      edCtx.strokeStyle='#000';edCtx.lineWidth=1;edCtx.stroke();
+    }
+  }
+  edCtx.fillStyle='rgba(0,0,0,0.6)';edCtx.fillRect(0,eH-18,eW,18);
+  edCtx.fillStyle='#44445a';edCtx.font='9px DM Mono,monospace';
+  edCtx.fillText(panoImg.width+'×'+panoImg.height+'  ·  '+frames.length+' crops  ·  scroll or use controls to zoom',10,eH-5);
+}
+
+function hitCorner(sx,sy){
+  for(var i=frames.length-1;i>=0;i--){
+    var f=frames[i],fsx=cOX+f.x*cScale,fsy=cOY+f.y*cScale,fsw=f.w*cScale,fsh=f.h*cScale;
+    var pts={tl:[fsx,fsy],tr:[fsx+fsw,fsy],bl:[fsx,fsy+fsh],br:[fsx+fsw,fsy+fsh]};
+    var ks=Object.keys(pts);
+    for(var k=0;k<ks.length;k++){var pt=pts[ks[k]];if(Math.hypot(sx-pt[0],sy-pt[1])<=HR+3)return{fi:i,corner:ks[k]};}
+  }
+  return null;
+}
+function hitFrame(sx,sy){
+  var ix=(sx-cOX)/cScale,iy=(sy-cOY)/cScale;
+  for(var i=frames.length-1;i>=0;i--){var f=frames[i];if(ix>=f.x&&ix<=f.x+f.w&&iy>=f.y&&iy<=f.y+f.h)return i;}
+  return -1;
+}
+function edDown(e){
+  var r=edCv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  var ch=hitCorner(sx,sy);
+  if(ch){selIdx=ch.fi;var f=frames[ch.fi];dragSt={type:'resize',fi:ch.fi,corner:ch.corner,startSX:sx,startSY:sy,ox:f.x,oy:f.y,ow:f.w,oh:f.h,origPrintW:f.printW,origPrintH:f.printH};rebuildList();renderEditor();return;}
+  var hit=hitFrame(sx,sy);
+  if(hit>=0){selIdx=hit;var f=frames[hit],ix=(sx-cOX)/cScale,iy=(sy-cOY)/cScale;dragSt={type:'move',fi:hit,startIX:ix,startIY:iy,ox:f.x,oy:f.y};rebuildList();renderEditor();}
+  else{selIdx=-1;panning=true;panSX=sx-cOX;panSY=sy-cOY;rebuildList();renderEditor();}
+}
+function edMove(e){
+  var r=edCv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  if(dragSt){
+    var f=frames[dragSt.fi];
+    if(dragSt.type==='move'){
+      f.x=dragSt.ox+((sx-cOX)/cScale-dragSt.startIX); f.y=dragSt.oy+((sy-cOY)/cScale-dragSt.startIY); clampF(f);
+      document.getElementById('cv-info').textContent='P'+(dragSt.fi+1)+': x='+Math.round(f.x)+' y='+Math.round(f.y);
+    } else {
+      var dx=(sx-dragSt.startSX)/cScale,dy=(sy-dragSt.startSY)/cScale;
+      var cn=dragSt.corner,nx=dragSt.ox,ny=dragSt.oy,nw=dragSt.ow,nh=dragSt.oh;
+      if(cn==='tl'){nx+=dx;ny+=dy;nw-=dx;nh-=dy;}else if(cn==='tr'){nw+=dx;ny+=dy;nh-=dy;}
+      else if(cn==='bl'){nx+=dx;nw-=dx;nh+=dy;}else if(cn==='br'){nw+=dx;nh+=dy;}
+      if(nw>10){f.x=nx;f.w=nw;} if(nh>10){f.y=ny;f.h=nh;}
+      // Scale print inches proportionally to how much the crop changed (don't use px/DPI which is wrong)
+      var scaleW = (dragSt.ow>0) ? f.w/dragSt.ow : 1;
+      var scaleH = (dragSt.oh>0) ? f.h/dragSt.oh : 1;
+      f.printW = Math.max(0.5, dragSt.origPrintW * scaleW);
+      f.printH = Math.max(0.5, dragSt.origPrintH * scaleH);
+      clampF(f); rebuildList();
+    }
+    renderEditor(); rebuild3D(); return;
+  }
+  if(panning){cOX=sx-panSX;cOY=sy-panSY;renderEditor();return;}
+  var ch=hitCorner(sx,sy);
+  if(ch){var cm={tl:'nw-resize',tr:'ne-resize',bl:'sw-resize',br:'se-resize'};edCv.style.cursor=cm[ch.corner];}
+  else edCv.style.cursor=hitFrame(sx,sy)>=0?'grab':'default';
+}
+function edUp(){
+  if(dragSt){autoWallPos();dragSt=null;document.getElementById('cv-info').textContent='';rebuildList();rebuild3D();}
+  panning=false;
+}
+function edWheel(e){
+  e.preventDefault();
+  var r=edCv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  var zf=e.deltaY<0?1.12:0.9,prev=cScale;
+  cScale=Math.max(0.02,Math.min(10,cScale*zf));
+  cOX=sx-(sx-cOX)*(cScale/prev); cOY=sy-(sy-cOY)*(cScale/prev);
+  updateZoomDisplay(); renderEditor();
+}
+
+// ── Zoom controls ──
+function updateZoomDisplay(){
+  var el=document.getElementById('zoom-pct');
+  if(el) el.textContent=Math.round(cScale*100)+'%';
+}
+
+// Set zoom to an exact fraction of panoImg native size, centered
+function zoomEditor(fraction){
+  if(!panoImg) return;
+  cScale=fraction;
+  // Center the image in the canvas
+  cOX=(eW-panoImg.width*cScale)/2;
+  cOY=(eH-panoImg.height*cScale)/2;
+  updateZoomDisplay(); renderEditor();
+}
+
+// Fit image to window (same as fitImg)
+function zoomEditorFit(){
+  fitImg(); updateZoomDisplay(); renderEditor();
+}
+
+// Step zoom in or out by ~20%
+function zoomStep(dir){
+  if(!panoImg) return;
+  var factor=dir>0?1.2:1/1.2;
+  var prev=cScale;
+  cScale=Math.max(0.02,Math.min(10,cScale*factor));
+  // Zoom toward center of canvas
+  var cx=eW/2, cy=eH/2;
+  cOX=cx-(cx-cOX)*(cScale/prev);
+  cOY=cy-(cy-cOY)*(cScale/prev);
+  updateZoomDisplay(); renderEditor();
+}
+
+// Click on % label to type an exact zoom value
+function promptZoom(){
+  var cur=Math.round(cScale*100);
+  var val=prompt('Enter zoom % (1–1000):', cur);
+  if(val===null) return;
+  var n=parseFloat(val);
+  if(isNaN(n)||n<=0) return;
+  zoomEditor(n/100);
+}
+
+// ═══════════════════════════════════════════════
+// FRAME LIST
+// ═══════════════════════════════════════════════
+function rebuildList(){
+  var list=document.getElementById('frame-list'); list.innerHTML='';
+  for(var i=0;i<frames.length;i++){
+    (function(idx){
+      var f=frames[idx],el=document.createElement('div');
+      el.className='fi'+(idx===selIdx?' sel':'');
+      var WR=60;
+      var dpi=Math.round(f.w/f.printW);
+      el.innerHTML=
+        '<div class="fi-top"><div class="fi-dot" style="background:'+f.color+'"></div>'+
+        '<span class="fi-name">Print #'+(idx+1)+'</span><span class="fi-px">'+Math.round(f.w)+'×'+Math.round(f.h)+'px · '+dpi+'dpi</span></div>'+
+        '<div class="fi-g2">'+
+          '<div><label>W (in)</label><input type="number" value="'+f.printW.toFixed(1)+'" min="0.5" max="200" step="0.5" onchange="onInchChange('+idx+',\'w\',this.value)" onclick="event.stopPropagation()"></div>'+
+          '<div><label>H (in)</label><input type="number" value="'+f.printH.toFixed(1)+'" min="0.5" max="200" step="0.5" onchange="onInchChange('+idx+',\'h\',this.value)" onclick="event.stopPropagation()"></div>'+
+        '</div>'+
+        '<div class="fi-section">WALL POSITION (inches from center)</div>'+
+        '<div class="wall-row">'+
+          '<span class="wall-lbl">X</span>'+
+          '<input type="range" class="wall-range" id="wx-r-'+idx+'" min="-'+WR+'" max="'+WR+'" step="0.5" value="'+f.wallX.toFixed(1)+'" oninput="onWX('+idx+',this.value)" onclick="event.stopPropagation()">'+
+          '<input type="number" class="wall-num" id="wx-n-'+idx+'" value="'+f.wallX.toFixed(1)+'" min="-'+WR+'" max="'+WR+'" step="0.5" onchange="onWXn('+idx+',this.value)" onclick="event.stopPropagation()">'+
+        '</div>'+
+        '<div class="wall-row">'+
+          '<span class="wall-lbl">Y</span>'+
+          '<input type="range" class="wall-range" id="wy-r-'+idx+'" min="-'+WR+'" max="'+WR+'" step="0.5" value="'+f.wallY.toFixed(1)+'" oninput="onWY('+idx+',this.value)" onclick="event.stopPropagation()">'+
+          '<input type="number" class="wall-num" id="wy-n-'+idx+'" value="'+f.wallY.toFixed(1)+'" min="-'+WR+'" max="'+WR+'" step="0.5" onchange="onWYn('+idx+',this.value)" onclick="event.stopPropagation()">'+
+        '</div>';
+      el.addEventListener('click',function(){selIdx=idx;rebuildList();renderEditor();});
+      list.appendChild(el);
+    })(i);
+  }
+}
+function updateStatus(){
+  if(!panoImg) return;
+  document.getElementById('st-res').textContent=panoImg.width+'×'+panoImg.height+'px';
+  document.getElementById('st-n').textContent=frames.length+' print'+(frames.length!==1?'s':'');
+  if(frames[0]){var avgDpi=Math.round(frames.reduce(function(a,f){return a+f.w/f.printW;},0)/frames.length);document.getElementById('st-dpi').textContent='avg '+avgDpi+' DPI';}
+}
+
+// ═══════════════════════════════════════════════
+// THREE.JS
+// Key: #three-wrap is a flex:1 child — clientWidth/Height are always real.
+// We create the renderer sized to match, then watch for resize.
+// ═══════════════════════════════════════════════
+var scene,camera,renderer,wallMesh,floorMesh,gridGroup,furnGroup;
+var camTheta=0,camPhi=0.4,camR=9;
+var camTgt=new THREE.Vector3(0,0,0);
+var orb={down:false,lx:0,ly:0,btn:0};
+var pmeshes=[];
+
+function initThree(){
+  var wrap=document.getElementById('three-wrap');
+  var w=wrap.clientWidth, h=wrap.clientHeight;
+  // clientWidth/Height are reliable here because #three-wrap is flex:1 (not position:absolute)
+  if(w<2) w=800; if(h<2) h=400;
+
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(42,w/h,0.01,300);
+  updateCam();
+
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(w,h);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.3;
+  renderer.setClearColor(0x040408);
+
+  // Style canvas to fill the wrapper exactly
+  var cvs=renderer.domElement;
+  cvs.style.display='block';
+  cvs.style.width='100%';
+  cvs.style.height='100%';
+  wrap.insertBefore(cvs, wrap.firstChild); // insert before hint div
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff,0.45));
+  var key=new THREE.DirectionalLight(0xfff5e0,1.7);
+  key.position.set(7,12,7); key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);
+  key.shadow.camera.left=-30;key.shadow.camera.right=30;
+  key.shadow.camera.top=20;key.shadow.camera.bottom=-12;key.shadow.camera.far=80;
+  scene.add(key);
+  var fill=new THREE.DirectionalLight(0xd0e8ff,0.5);
+  fill.position.set(-6,4,-4); scene.add(fill);
+
+  // Wall
+  wallMesh=new THREE.Mesh(new THREE.PlaneGeometry(80,40),new THREE.MeshLambertMaterial({color:new THREE.Color(wallColor)}));
+  wallMesh.position.set(0,2,-0.2); wallMesh.receiveShadow=true; scene.add(wallMesh);
+  // Floor
+  floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(80,40),new THREE.MeshLambertMaterial({color:0x18181f}));
+  floorMesh.rotation.x=-Math.PI/2; floorMesh.position.y=-4; floorMesh.receiveShadow=true; scene.add(floorMesh);
+
+  gridGroup=new THREE.Group(); scene.add(gridGroup);
+  furnGroup=new THREE.Group(); scene.add(furnGroup);
+
+  // Orbit controls on renderer canvas
+  cvs.addEventListener('mousedown',function(e){orb.down=true;orb.lx=e.clientX;orb.ly=e.clientY;orb.btn=e.button;});
+  cvs.addEventListener('mousemove',function(e){
+    if(!orb.down) return;
+    var dx=e.clientX-orb.lx,dy=e.clientY-orb.ly;
+    orb.lx=e.clientX;orb.ly=e.clientY;
+    if(orb.btn===0){camTheta-=dx*0.012;camPhi=Math.max(-1.3,Math.min(1.3,camPhi+dy*0.012));}
+    else if(orb.btn===2){camTgt.x-=dx*camR*0.002;camTgt.y+=dy*camR*0.002;}
+    updateCam();
+  });
+  cvs.addEventListener('mouseup',function(){orb.down=false;});
+  cvs.addEventListener('contextmenu',function(e){e.preventDefault();});
+  cvs.addEventListener('wheel',function(e){e.preventDefault();camR=Math.max(1,Math.min(60,camR+e.deltaY*0.025));updateCam();},{passive:false});
+
+  // Resize: observe the wrapper (not the canvas — canvas is CSS-scaled)
+  new ResizeObserver(function(){
+    var w2=wrap.clientWidth,h2=wrap.clientHeight;
+    if(w2<2||h2<2) return;
+    renderer.setSize(w2,h2);
+    camera.aspect=w2/h2; camera.updateProjectionMatrix();
+  }).observe(wrap);
+
+  // Render loop
+  (function tick(){requestAnimationFrame(tick);renderer.render(scene,camera);})();
+}
+
+function updateCam(){
+  camera.position.set(
+    camTgt.x+camR*Math.sin(camTheta)*Math.cos(camPhi),
+    camTgt.y+camR*Math.sin(camPhi),
+    camTgt.z+camR*Math.cos(camTheta)*Math.cos(camPhi));
+  camera.lookAt(camTgt);
+}
+
+// ═══════════════════════════════════════════════
+// WALL GRID
+// ═══════════════════════════════════════════════
+function rebuildGrid(){
+  if(!scene||!gridGroup) return;
+  while(gridGroup.children.length) gridGroup.remove(gridGroup.children[0]);
+  if(gridMode==='none') return;
+  var isIn=(gridMode==='inches'),major=isIn?6:12,minor=isIn?1:6;
+  var hW=72*INCH3D,hH=48*INCH3D,wY=2,z=-0.19;
+  function lines(pts,col,op){
+    var geo=new THREE.BufferGeometry(),v=[];
+    for(var i=0;i<pts.length;i+=2){v.push(pts[i][0],pts[i][1]+wY,z,pts[i+1][0],pts[i+1][1]+wY,z);}
+    geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v),3));
+    gridGroup.add(new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:col,opacity:op,transparent:true})));
+  }
+  var minorPts=[],majorPts=[];
+  for(var v=-hW;v<=hW+0.001;v+=minor*INCH3D){
+    if(Math.abs(v%(major*INCH3D))>0.001) minorPts.push([v,-hH],[v,hH]);
+    else majorPts.push([v,-hH],[v,hH]);
+  }
+  for(var v=-hH;v<=hH+0.001;v+=minor*INCH3D){
+    if(Math.abs(v%(major*INCH3D))>0.001) minorPts.push([-hW,v],[hW,v]);
+    else majorPts.push([-hW,v],[hW,v]);
+  }
+  if(minorPts.length) lines(minorPts,0x888888,0.18);
+  if(majorPts.length) lines(majorPts,0xaaaaaa,0.35);
+  lines([[0,-hH],[0,hH],[-hW,0],[hW,0]],0xcccccc,0.5);
+}
+
+// ═══════════════════════════════════════════════
+// FURNITURE
+// ═══════════════════════════════════════════════
+function rebuildFurniture(){
+  if(!scene||!furnGroup) return;
+  while(furnGroup.children.length) furnGroup.remove(furnGroup.children[0]);
+  if(furnType==='none') return;
+  var fc=new THREE.Color(furnColor),flY=-4,wZ=0;
+  function box(w,h,d,col,x,y,z){var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:col}));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;furnGroup.add(m);return m;}
+  function cyl(r,h,col,x,y,z){var m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,16),new THREE.MeshLambertMaterial({color:col}));m.position.set(x,y,z);m.castShadow=true;furnGroup.add(m);return m;}
+  var dk=fc.clone().multiplyScalar(0.5),lt=fc.clone().multiplyScalar(1.35);
+  var I=INCH3D;
+  if(furnType==='sofa'){
+    var W=84*I,H=34*I,D=32*I,lh=6*I,pz=wZ+D/2+5*I;
+    box(W,H*0.55,D,fc,0,flY+lh+H*0.55/2,pz);
+    box(W,H,D*0.25,fc,0,flY+lh+H/2,wZ+3*I+5*I);
+    box(D*0.18,H,D,fc,-W/2+D*0.09,flY+lh+H/2,pz);
+    box(D*0.18,H,D,fc,W/2-D*0.09,flY+lh+H/2,pz);
+    var lw=3*I;
+    [[-W/2+lw,wZ+lw],[W/2-lw,wZ+lw],[-W/2+lw,wZ+D-lw],[W/2-lw,wZ+D-lw]].forEach(function(p){box(lw,lh,lw,dk,p[0],flY+lh/2,p[1]+5*I);});
+    box(W*0.88,H*0.12,D*0.6,lt,0,flY+lh+H*0.55+H*0.06,pz+D*0.05);
+  } else if(furnType==='console'){
+    var W=48*I,H=30*I,D=14*I,tw=2*I,pz=wZ+D/2+2*I;
+    box(W,tw,D,fc,0,flY+H,pz);
+    [[-W/2+tw,wZ+tw],[W/2-tw,wZ+tw],[-W/2+tw,wZ+D-tw],[W/2-tw,wZ+D-tw]].forEach(function(p){box(tw,H*0.9,tw,dk,p[0],flY+H*0.45,p[1]+2*I);});
+    box(W,tw,D,lt,0,flY+H*0.4,pz);
+  } else if(furnType==='bed'){
+    var W=60*I,H=24*I,D=80*I,lh=6*I,lw=3*I;
+    box(W,H,D,lt,0,flY+lh+H/2,wZ+D/2+2*I);
+    box(W,H*1.8,6*I,fc,0,flY+lh+H*1.8/2,wZ+3*I);
+    [[-W/2+lw,wZ+lw],[W/2-lw,wZ+lw],[-W/2+lw,wZ+D-lw],[W/2-lw,wZ+D-lw]].forEach(function(p){box(lw,lh,lw,dk,p[0],flY+lh/2,p[1]+2*I);});
+    box(W*0.9,H*0.2,18*I,new THREE.Color(0xeeeedd),0,flY+lh+H+H*0.1,wZ+10*I+2*I);
+  } else if(furnType==='desk'){
+    var W=60*I,H=30*I,D=24*I,tw=2*I,pz=wZ+D/2+2*I;
+    box(W,tw,D,fc,0,flY+H,pz);
+    box(tw,H,D,fc,-W/2+tw,flY+H/2,pz);
+    box(tw,H,D,fc,W/2-tw,flY+H/2,pz);
+    box(W,H*0.6,tw,dk,0,flY+H*0.3,wZ+tw+2*I);
+    box(24*I,16*I,2*I,new THREE.Color(0x222222),0,flY+H+8*I+tw,wZ+8*I+2*I);
+  } else if(furnType==='lamp'){
+    cyl(5*I,2*I,dk,0,flY+I,wZ+18*I);
+    cyl(1.5*I,60*I,dk,0,flY+31*I,wZ+18*I);
+    var shade=new THREE.Mesh(new THREE.CylinderGeometry(8*I,5*I,12*I,16,1,true),new THREE.MeshLambertMaterial({color:fc,side:THREE.DoubleSide}));
+    shade.position.set(0,flY+66*I,wZ+18*I); shade.castShadow=true; furnGroup.add(shade);
+    var gl=new THREE.PointLight(0xffe8c0,0.6,3); gl.position.set(0,flY+62*I,wZ+18*I); furnGroup.add(gl);
+  } else if(furnType==='plant'){
+    cyl(7*I,14*I,dk,0,flY+7*I,wZ+20*I);
+    cyl(3*I,30*I,new THREE.Color(0x5a3a20),0,flY+29*I,wZ+20*I);
+    var fg=new THREE.Color(0x2d6a2d).lerp(fc,0.3);
+    [[0,52,0],[12,48,8],[-10,45,6]].forEach(function(o){
+      var m=new THREE.Mesh(new THREE.SphereGeometry(12*I,12,12),new THREE.MeshLambertMaterial({color:fg}));
+      m.position.set(o[0]*I,flY+o[1]*I,wZ+20*I+o[2]*I); m.castShadow=true; furnGroup.add(m);
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════
+// REBUILD 3D PRINTS
+// ═══════════════════════════════════════════════
+function rebuild3D(){
+  if(!scene||!panoImg||!frames.length) return;
+  for(var mi=0;mi<pmeshes.length;mi++){
+    var g=pmeshes[mi];
+    g.traverse(function(c){
+      if(!c.isMesh) return;
+      c.geometry.dispose();
+      var ms=Array.isArray(c.material)?c.material:[c.material];
+      ms.forEach(function(m){if(m.map)m.map.dispose();m.dispose();});
+    });
+    scene.remove(g);
+  }
+  pmeshes=[];
+  wallMesh.material.color.set(new THREE.Color(wallColor));
+  var depth3D=wrapDepth*INCH3D;
+  for(var i=0;i<frames.length;i++){
+    var f=frames[i],group=new THREE.Group();
+    var uW=f.printW*INCH3D,uH=f.printH*INCH3D;
+    if(frameType==='wrap'){
+      buildWrapMesh(group,f,uW,uH,depth3D);
+    } else if(frameType==='canvas'){
+      var geo=new THREE.BoxGeometry(uW,uH,depth3D);
+      var mats=[new THREE.MeshLambertMaterial({color:frameColor}),new THREE.MeshLambertMaterial({color:frameColor}),
+        new THREE.MeshLambertMaterial({color:frameColor}),new THREE.MeshLambertMaterial({color:frameColor}),
+        new THREE.MeshLambertMaterial({map:makeFaceTex(f)}),new THREE.MeshLambertMaterial({color:'#090909'})];
+      var m=new THREE.Mesh(geo,mats); m.castShadow=true; group.add(m);
+    } else if(frameType==='float'){
+      var face=new THREE.Mesh(new THREE.PlaneGeometry(uW,uH),new THREE.MeshLambertMaterial({map:makeFaceTex(f)}));
+      face.castShadow=true; group.add(face);
+      var bk=new THREE.Mesh(new THREE.BoxGeometry(uW+0.04,uH+0.04,depth3D*0.2),new THREE.MeshLambertMaterial({color:frameColor}));
+      bk.position.z=-depth3D*0.12; group.add(bk);
+    } else {
+      var pm=new THREE.Mesh(new THREE.PlaneGeometry(uW,uH),new THREE.MeshLambertMaterial({map:makeFaceTex(f)}));
+      pm.castShadow=true; group.add(pm);
+    }
+    var shM=new THREE.Mesh(new THREE.PlaneGeometry(uW+0.06,uH+0.06),new THREE.MeshBasicMaterial({color:0,opacity:0.13,transparent:true}));
+    shM.position.z=(frameType==='canvas'||frameType==='wrap'?-depth3D/2:0)-0.004; group.add(shM);
+    group.position.set(f.wallX*INCH3D, f.wallY*INCH3D+globalVOff*INCH3D, 0);
+    scene.add(group); pmeshes.push(group);
+  }
+  document.getElementById('three-info').textContent=frames.length+' prints · WebGL';
+}
+
+function buildWrapMesh(group,f,uW,uH,depth3D){
+  var wp=wrapPxVal();
+  var geo=new THREE.BoxGeometry(uW,uH,depth3D);
+  var mats=[makeSideTex(f,'right',wp),makeSideTex(f,'left',wp),makeSideTex(f,'top',wp),makeSideTex(f,'bottom',wp),makeFaceTex(f),null].map(function(t,i){
+    if(i===5) return new THREE.MeshLambertMaterial({color:'#090909'});
+    return new THREE.MeshLambertMaterial({map:t});
+  });
+  var m=new THREE.Mesh(geo,mats); m.castShadow=true; group.add(m);
+}
+function makeSideTex(f,dir,wp){
+  var c=document.createElement('canvas'),sx,sy,sw,sh;
+  if(dir==='right'){sx=f.x+f.w;sy=f.y;sw=Math.min(wp,panoImg.width-(f.x+f.w));sh=f.h;}
+  else if(dir==='left'){sx=Math.max(0,f.x-wp);sy=f.y;sw=f.x-sx;sh=f.h;}
+  else if(dir==='top'){sx=f.x;sy=Math.max(0,f.y-wp);sw=f.w;sh=f.y-sy;}
+  else{sx=f.x;sy=f.y+f.h;sw=f.w;sh=Math.min(wp,panoImg.height-(f.y+f.h));}
+  if(sw<=0||sh<=0) return solidTex();
+  c.width=Math.round(sw); c.height=Math.round(sh);
+  c.getContext('2d').drawImage(panoImg,sx,sy,sw,sh,0,0,c.width,c.height);
+  if(dir==='right') flipH(c); else if(dir==='top') flipV(c);
+  return canvasTex(c);
+}
+function makeFaceTex(f){
+  var c=document.createElement('canvas'),md=1024,asp=f.w/f.h,tw,th;
+  if(asp>=1){tw=md;th=Math.round(md/asp);}else{th=md;tw=Math.round(md*asp);}
+  tw=Math.max(2,tw); th=Math.max(2,th); c.width=tw; c.height=th;
+  c.getContext('2d').drawImage(panoImg,Math.round(f.x),Math.round(f.y),Math.round(f.w),Math.round(f.h),0,0,tw,th);
+  return canvasTex(c);
+}
+function flipH(cv){var c2=document.createElement('canvas');c2.width=cv.width;c2.height=cv.height;var ctx=c2.getContext('2d');ctx.translate(cv.width,0);ctx.scale(-1,1);ctx.drawImage(cv,0,0);cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv.getContext('2d').drawImage(c2,0,0);}
+function flipV(cv){var c2=document.createElement('canvas');c2.width=cv.width;c2.height=cv.height;var ctx=c2.getContext('2d');ctx.translate(0,cv.height);ctx.scale(1,-1);ctx.drawImage(cv,0,0);cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv.getContext('2d').drawImage(c2,0,0);}
+function solidTex(){var c=document.createElement('canvas');c.width=2;c.height=2;return canvasTex(c);}
+function canvasTex(c){var t=new THREE.CanvasTexture(c);t.anisotropy=renderer?renderer.capabilities.getMaxAnisotropy():4;t.needsUpdate=true;return t;}
+
+// ═══════════════════════════════════════════════
+// STYLE SETTERS
+// ═══════════════════════════════════════════════
+function setFT(t,btn){frameType=t;document.querySelectorAll('#ft-tg .tgb').forEach(function(b){b.classList.remove('act');b.classList.remove('act-wrap');});btn.classList.add(t==='wrap'?'act-wrap':'act');document.getElementById('wrap-info').style.display=t==='wrap'?'block':'none';renderEditor();rebuild3D();}
+function setFC(el){document.querySelectorAll('#fc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');frameColor=el.dataset.c;rebuild3D();}
+function setWC(el){document.querySelectorAll('#wc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');wallColor=el.dataset.c;if(wallMesh)wallMesh.material.color.set(new THREE.Color(wallColor));}
+function setGrid(m,btn){gridMode=m;document.querySelectorAll('#grid-off,#grid-in,#grid-ft').forEach(function(b){b.classList.remove('act');});btn.classList.add('act');rebuildGrid();}
+function setFurn(t,btn){furnType=t;document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('act');});btn.classList.add('act');rebuildFurniture();}
+function setFurnC(el){document.querySelectorAll('#furnc-row .cs').forEach(function(s){s.classList.remove('act');});el.classList.add('act');furnColor=el.dataset.c;rebuildFurniture();}
+function onDepth(v){wrapDepth=parseFloat(v);document.getElementById('depth-v').textContent=v+'"';if(frameType==='wrap')renderEditor();rebuild3D();}
+function onVOff(v){globalVOff=parseFloat(v);document.getElementById('voff-v').textContent=parseFloat(v).toFixed(1)+'"';rebuild3D();}
+function resetCam(){camTheta=0;camPhi=0.4;camR=9;camTgt.set(0,0,0);updateCam();}
+
+// ═══════════════════════════════════════════════
+// DOWNLOAD
+// ═══════════════════════════════════════════════
+function downloadFrames(){
+  if(!panoImg||!frames.length){showToast('No frames');return;}
+  showToast('Preparing…');
+  for(var i=0;i<frames.length;i++){
+    (function(idx){
+      var f=frames[idx],src=frameType==='wrap'?outerCrop(f):{x:f.x,y:f.y,w:f.w,h:f.h};
+      var c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(src.w)); c.height=Math.max(1,Math.round(src.h));
+      c.getContext('2d').drawImage(panoImg,Math.round(src.x),Math.round(src.y),Math.round(src.w),Math.round(src.h),0,0,c.width,c.height);
+      setTimeout(function(){
+        c.toBlob(function(blob){
+          var url=URL.createObjectURL(blob),a=document.createElement('a');
+          a.href=url; a.download='print_'+String(idx+1).padStart(2,'0')+'_'+f.printW.toFixed(0)+'x'+f.printH.toFixed(0)+'in_'+c.width+'x'+c.height+'px.jpg';
+          a.click(); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+        },'image/jpeg',0.97);
+      },idx*350);
+    })(i);
+  }
+  setTimeout(function(){showToast(frames.length+' prints queued!');},500);
+}
+
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2600);}
+window.addEventListener('resize',function(){if(panoImg) sizeEditor();});
+</script>
+</body>
+</html>
