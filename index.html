@@ -13,13 +13,15 @@
   --success:#6de8a0;--wrap:#ff9f43;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;overflow:hidden;}
+html{height:100%;}body{height:100%;overflow:hidden;}
+body.upload-mode{overflow-y:auto;height:auto;min-height:100%;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
   display:flex;flex-direction:column;}
 
 /* ── Upload overlay ── */
 #upload-zone{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;z-index:200;transition:opacity .4s;}
+  align-items:center;justify-content:flex-start;padding-top:6vh;padding-bottom:6vh;
+  overflow-y:auto;z-index:200;transition:opacity .4s;}
 #upload-zone.hidden{opacity:0;pointer-events:none;}
 .ubox{border:2px dashed var(--border);border-radius:4px;padding:50px 70px;text-align:center;
   transition:all .2s;max-width:520px;width:90%;}
@@ -518,6 +520,8 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
 
 <script>
 'use strict';
+// Show upload page in scrollable mode
+document.body.classList.add('upload-mode');
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
@@ -559,6 +563,7 @@ function loadFile(file){
     panoImg=image;
     document.getElementById('upload-zone').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
+    document.body.classList.remove('upload-mode');
     document.getElementById('img-info').textContent=image.width+'×'+image.height+'px · '+(file.size/1024/1024).toFixed(1)+'MB';
     // The app div just became display:flex. We need one browser layout pass
     // before reading element sizes. requestAnimationFrame fires after paint.
