@@ -551,11 +551,21 @@ var standardSizesOnly=true; // restrict templates to standard paper sizes
 var dzEl=document.getElementById('dz');
 document.getElementById('fi').addEventListener('change',function(e){
   if(e.target.files&&e.target.files[0]) loadFile(e.target.files[0]);
+  e.target.value=''; // allow re-selecting the same file
+});
+// The box says "drag & drop or click" — make the whole box clickable, not just the button
+dzEl.addEventListener('click',function(e){
+  if(e.target.closest&&e.target.closest('button')) return; // button has its own handler
+  document.getElementById('fi').click();
 });
 dzEl.addEventListener('dragover',function(e){e.preventDefault();dzEl.classList.add('drag-over');});
 dzEl.addEventListener('dragleave',function(){dzEl.classList.remove('drag-over');});
-dzEl.addEventListener('drop',function(e){
-  e.preventDefault();dzEl.classList.remove('drag-over');
+// One window-level handler accepts drops anywhere (dropzone or the main app after
+// upload) and stops the browser from navigating away — which would lose all work —
+// when a drop misses the dropzone.
+window.addEventListener('dragover',function(e){e.preventDefault();});
+window.addEventListener('drop',function(e){
+  e.preventDefault(); dzEl.classList.remove('drag-over');
   if(e.dataTransfer.files&&e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
 });
 
@@ -565,6 +575,7 @@ function loadFile(file){
   var image=new Image();
   image.onload=function(){
     URL.revokeObjectURL(url);
+    if(!image.width||!image.height){alert('Image has no pixel dimensions.');return;}
     panoImg=image;
     document.getElementById('upload-zone').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
@@ -576,9 +587,16 @@ function loadFile(file){
       // By this point flex layout has run and #editor-wrap / #three-wrap have real pixel sizes
       if(!appInited){
         initEditor();
-        initThree();
-        rebuildFurniture(); // must be after initThree() creates scene/furnGroup
-        rebuildGrid();      // restore a persisted grid mode on first load
+        // WebGL can be unavailable (blocked, remote session, old GPU). Degrade to
+        // 2D-only instead of killing the whole init chain.
+        try{
+          initThree();
+          rebuildFurniture(); // must be after initThree() creates scene/furnGroup
+          rebuildGrid();      // restore a persisted grid mode on first load
+        }catch(err){
+          scene=null;camera=null;renderer=null;
+          document.getElementById('three-info').textContent='3D UNAVAILABLE';
+        }
         appInited=true;
       } else {
         fitImg(); updateZoomDisplay();
@@ -630,7 +648,7 @@ function gapPxVal(){
 function applyTemplate(){
   if(!panoImg) return;
   var n=Math.max(1,parseInt(document.getElementById('num-p').value)||3);
-  var IW=panoImg.width,IH=panoImg.height,g=gapPxVal();
+  var IW=panoImg.width,IH=panoImg.height;
   frames=[];
   function mkF(x,y,w,h,i){
     // x,y = top-left of crop in image pixels (set by template)
@@ -725,7 +743,7 @@ function applyTemplate(){
 
 function clampF(f){
   if(!panoImg) return;
-  f.w=Math.max(4,f.w); f.h=Math.max(4,f.h);
+  f.w=Math.max(4,Math.min(panoImg.width,f.w)); f.h=Math.max(4,Math.min(panoImg.height,f.h));
   f.x=Math.max(0,Math.min(panoImg.width-f.w,f.x));
   f.y=Math.max(0,Math.min(panoImg.height-f.h,f.y));
 }
@@ -752,8 +770,11 @@ function autoWallPos(){
 function addFrame(){
   if(!panoImg) return;
   var i=frames.length,fw=panoImg.width*0.28,fh=panoImg.height*0.75;
+  // Physical size derives from crop pixels at current DPI — same rule as templates —
+  // so the 3D preview and per-frame DPI readout stay consistent.
+  var dpi=panoDPI();
   frames.push({x:Math.random()*(panoImg.width-fw),y:panoImg.height*0.1,w:fw,h:fh,
-    printW:16,printH:16*(fh/fw),wallX:0,wallY:0,color:COLS[i%COLS.length]});
+    printW:fw/dpi,printH:fh/dpi,wallX:0,wallY:0,color:COLS[i%COLS.length]});
   autoWallPos(); rebuildList(); renderEditor(); rebuild3D(); updateStatus();
 }
 function removeFrame(){
@@ -855,6 +876,7 @@ function rescaleCropByDPI(f){
 function onPrintSizePreset(val){
   if(val==='custom'){
     document.getElementById('custom-size-row').style.display='';
+    saveSettings(); // persist the 'custom' selection itself
     return;
   }
   document.getElementById('custom-size-row').style.display='none';
@@ -1174,6 +1196,9 @@ function updateStatus(){
     else if(avgDpi<200){dpiLabel+=' ⚠';if(warn)warn.style.display='flex';}
     else{if(warn)warn.style.display='none';}
     document.getElementById('st-dpi').textContent=dpiLabel;
+  } else {
+    document.getElementById('st-dpi').textContent='';
+    var warn0=document.getElementById('dpi-warn'); if(warn0)warn0.style.display='none';
   }
 }
 
@@ -1268,6 +1293,7 @@ function initThree(){
 }
 
 function updateCam(){
+  if(!camera) return; // 3D unavailable
   camera.position.set(
     camTgt.x+camR*Math.sin(camTheta)*Math.cos(camPhi),
     camTgt.y+camR*Math.sin(camPhi),
@@ -1631,7 +1657,7 @@ function rebuildFurniture(){
 // REBUILD 3D PRINTS
 // ═══════════════════════════════════════════════
 function rebuild3D(){
-  if(!scene||!panoImg||!frames.length) return;
+  if(!scene||!renderer||!panoImg||!frames.length) return;
   for(var mi=0;mi<pmeshes.length;mi++){
     var g=pmeshes[mi];
     g.traverse(function(c){
@@ -1765,7 +1791,7 @@ function downloadFrames(){
   if(!panoImg||!frames.length){showToast('No frames');return;}
   showToast('Preparing ZIP…');
   var zip=new JSZip();
-  var pending=frames.length;
+  var pending=frames.length, failed=0;
   frames.forEach(function(f,idx){
     // ── Output must exactly match the physical output ratio ──
     // The source crop (f.w × f.h) may not perfectly match due to rounding or
@@ -1813,15 +1839,17 @@ function downloadFrames(){
     var name='print_'+String(idx+1).padStart(2,'0')+'_'+wIn+'x'+hIn+'in_'+cropW+'x'+cropH+'px_'+dpiActual+'dpi.jpg';
 
     c.toBlob(function(blob){
-      zip.file(name,blob);
+      // toBlob returns null when the crop exceeds the browser's canvas limits
+      if(blob) zip.file(name,blob); else failed++;
       if(--pending===0){
+        if(failed===frames.length){showToast('Export failed — crops exceed browser canvas limits');return;}
         zip.generateAsync({type:'blob',compression:'STORE'}).then(function(zblob){
           var url=URL.createObjectURL(zblob), a=document.createElement('a');
           a.href=url; a.download='panosplit_prints.zip';
           a.click();
           setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
-          showToast(frames.length+' prints downloaded as ZIP');
-        });
+          showToast(failed?((frames.length-failed)+' prints in ZIP — '+failed+' failed (too large for browser)'):(frames.length+' prints downloaded as ZIP'));
+        }).catch(function(){showToast('ZIP creation failed');});
       }
     },'image/jpeg',0.97);
   });
@@ -1851,6 +1879,7 @@ function showHelp(key, e) {
 function closeHelp() {
   document.getElementById('help-overlay').style.display = 'none';
 }
+window.addEventListener('keydown',function(e){if(e.key==='Escape')closeHelp();});
 
 // Standard ISO/print sizes in inches [W, H]
 var STD_SIZES=[
