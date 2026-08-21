@@ -648,9 +648,20 @@ function gapPxVal(){
   return gapInches * panoDPI();
 }
 
+// Browsers don't enforce the input's max="10" attribute on TYPED values, so
+// clamp in the reader (200 typed prints = 200 full-res redraws per pointermove
+// and 200 export crops) and write the clamp back so the UI shows what the
+// layout actually used.
+function numPrintsVal(){
+  var el=document.getElementById('num-p');
+  var n=Math.max(1,Math.min(10,parseInt(el.value)||3));
+  if(el.value!==String(n)) el.value=n;
+  return n;
+}
+
 function applyTemplate(){
   if(!panoImg) return;
-  var n=Math.max(1,parseInt(document.getElementById('num-p').value)||3);
+  var n=numPrintsVal();
   var IW=panoImg.width,IH=panoImg.height;
   frames=[];
   function mkF(x,y,w,h,i){
@@ -915,7 +926,7 @@ function onCustomSize(){
 //   then re-apply the template to lay everything out cleanly.
 function applyPrintSizeToFrames(){
   if(!panoImg){ if(layoutMode==='template') applyTemplate(); return; }
-  var n=Math.max(1,parseInt(document.getElementById('num-p').value)||3);
+  var n=numPrintsVal();
   // Total physical width needed for n prints + (n-1) gaps
   var totalPhysW = n*defaultPrintW + (n-1)*gapInches;
   // Wide-mid template: middle print is 1.8× wide (see applyTemplate), so it needs
@@ -1086,12 +1097,13 @@ function edMove(e){
       var scaleH = (dragSt.oh>0) ? f.h/dragSt.oh : 1;
       f.printW = Math.max(0.5, dragSt.origPrintW * scaleW);
       f.printH = Math.max(0.5, dragSt.origPrintH * scaleH);
-      // Snap to nearest standard size if enabled
+      // Snap to nearest standard size if enabled — constrained to sizes that
+      // fit the image at the current DPI (see snapToStdSize)
       if(standardSizesOnly){
-        var snapped=snapToStdSize(f.printW, f.printH);
+        var dpi=panoDPI();
+        var snapped=snapToStdSize(f.printW, f.printH, panoImg.width/dpi, panoImg.height/dpi);
         f.printW=snapped[0]; f.printH=snapped[1];
         // Recompute crop pixels from snapped physical size
-        var dpi=panoDPI();
         var cx2=f.x+f.w/2, cy2=f.y+f.h/2;
         f.w=Math.round(f.printW*dpi); f.h=Math.round(f.printH*dpi);
         f.x=cx2-f.w/2; f.y=cy2-f.h/2;
@@ -1224,7 +1236,12 @@ var scene,camera,renderer,wallMesh,floorMesh,gridGroup,furnGroup;
 var needsRender=true;
 function invalidate(){needsRender=true;}
 var camTheta=0,camPhi=0.4,camR=9;
-var camTgt=new THREE.Vector3(0,0,0);
+// Guard the ONLY top-level THREE reference: if three.min.js fails to load
+// (partial clone, index.html saved alone), an unguarded ReferenceError here
+// would abort every later top-level statement (STD_SIZES, HELP_DATA,
+// restoreSettings, listeners) and half-break the 2D editor. With the guard,
+// initThree() throws instead and loadFile's catch degrades cleanly to 2D-only.
+var camTgt=(typeof THREE!=='undefined')?new THREE.Vector3(0,0,0):null;
 var orb={down:false,lx:0,ly:0,btn:0};
 var pmeshes=[];
 
@@ -1409,7 +1426,11 @@ function buildTapeGrid(){
             cx:wx, cy:wy, pw:f.printW, ph:f.printH, wallX:f.wallX};
   });
 
-  var allL=FB[0].l, allR=FB[n-1].r;
+  // Extremes must come from EDGES, not the center-sorted endpoints: with mixed
+  // print widths a wide print's edge can overhang a narrower neighbor's, so the
+  // leftmost/rightmost CENTER doesn't necessarily own the extreme edge.
+  var allL=FB.reduce(function(a,b){return Math.min(a,b.l);},Infinity);
+  var allR=FB.reduce(function(a,b){return Math.max(a,b.r);},-Infinity);
   var allB=FB.reduce(function(a,b){return Math.min(a,b.b);},Infinity);
   var allT=FB.reduce(function(a,b){return Math.max(a,b.t);},-Infinity);
   var totalW=allR-allL; // world units
@@ -1722,11 +1743,11 @@ function rebuild3D(){
   }
   // Compute combined span: sum of print widths + gaps between them
   if(frames.length){
-    // Sort frames by wallX to get left-to-right order
-    var sorted=frames.slice().sort(function(a,b){return a.wallX-b.wallX;});
-    // Total width = from left edge of leftmost to right edge of rightmost
-    var leftEdge=sorted[0].wallX-sorted[0].printW/2;
-    var rightEdge=sorted[sorted.length-1].wallX+sorted[sorted.length-1].printW/2;
+    // Total width = leftmost left edge to rightmost right edge. Reduce over ALL
+    // edges (not the center-sorted endpoints): with mixed print widths a wide
+    // print's edge can overhang a narrower neighbor's.
+    var leftEdge=frames.reduce(function(a,f){return Math.min(a,f.wallX-f.printW/2);},Infinity);
+    var rightEdge=frames.reduce(function(a,f){return Math.max(a,f.wallX+f.printW/2);},-Infinity);
     var totalW=(rightEdge-leftEdge);
     // Height: max printH
     var maxH=frames.reduce(function(a,f){return Math.max(a,f.printH);},0);
@@ -1740,6 +1761,10 @@ function rebuild3D(){
   if(gridMode==='tape') rebuildGrid(); // refresh tape when prints change
   } else {
     document.getElementById('three-info').textContent='WebGL';
+    // Removing the LAST frame must also clear the tape overlay, or the previous
+    // layout's nails/dim lines/labels float on an empty wall (buildTapeGrid's
+    // early return after clearGroup leaves the group empty, which is correct).
+    if(gridMode==='tape') rebuildGrid();
   }
 }
 
@@ -1758,7 +1783,9 @@ function makeSideTex(f,dir,wp){
   else if(dir==='left'){sx=Math.max(0,f.x-wp);sy=f.y;sw=f.x-sx;sh=f.h;}
   else if(dir==='top'){sx=f.x;sy=Math.max(0,f.y-wp);sw=f.w;sh=f.y-sy;}
   else{sx=f.x;sy=f.y+f.h;sw=f.w;sh=Math.min(wp,panoImg.height-(f.y+f.h));}
-  if(sw<=0||sh<=0) return solidTex();
+  // <1 not <=0: a sub-pixel margin (0<sw<0.5) would Math.round to a 0-wide
+  // canvas, and THREE uploads a zero-size texture as a blank/invalid wrap side
+  if(sw<1||sh<1) return solidTex();
   c.width=Math.round(sw); c.height=Math.round(sh);
   c.getContext('2d').drawImage(panoImg,sx,sy,sw,sh,0,0,c.width,c.height);
   if(dir==='right') flipH(c); else if(dir==='top') flipV(c);
@@ -1788,6 +1815,7 @@ function setFurnC(el){document.querySelectorAll('#furnc-row .cs').forEach(functi
 function onDepth(v){wrapDepth=parseFloat(v);document.getElementById('depth-v').textContent=inchesToDisp(wrapDepth);saveSettings();if(frameType==='wrap')renderEditor();rebuild3D();}
 function onVOff(v){globalVOff=parseFloat(v);document.getElementById('voff-v').textContent=inchesToDisp(globalVOff);saveSettings();rebuild3D();}
 function resetCam(){
+  if(!camTgt) return; // three.min.js never loaded — no 3D view to reset
   camTheta=0;camPhi=0.4;camR=9;
   var avgY=globalVOff*INCH3D; // default Y target at print height
   if(pmeshes.length){
@@ -1917,13 +1945,21 @@ var STD_SIZES=[
   [33.1,46.8],[46.8,33.1],// A0
 ];
 
-function snapToStdSize(w, h){
-  // Find the standard size with smallest total deviation from w,h
+function snapToStdSize(w, h, maxW, maxH){
+  // Find the standard size with smallest total deviation from w,h.
+  // Optional maxW/maxH (inches) exclude sizes that would not fit — the
+  // corner-drag snap passes the image bounds so a snap near the edge picks the
+  // nearest size that FITS. Otherwise clampF would ratio-shrink the snapped
+  // size to an arbitrary non-standard value, silently breaking the
+  // "Standard sizes only" invariant.
   var best=null, bestDist=Infinity;
   STD_SIZES.forEach(function(s){
+    if(maxW&&(s[0]>maxW||s[1]>maxH)) return;
     var d=Math.abs(s[0]-w)+Math.abs(s[1]-h);
     if(d<bestDist){bestDist=d;best=s;}
   });
+  // If NO standard size fits (image smaller than every standard size at this
+  // DPI), fall back to the unsnapped size — clampF then shrinks it to fit.
   return best||[w,h];
 }
 

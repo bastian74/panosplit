@@ -14,7 +14,9 @@ layout math is verified correct — don't regress it.
 
 Single `index.html`: file load (drag-and-drop) → layout/DPI model → canvas tile export (ZIP of
 per-tile PNGs) → optional WebGL 3D preview. A WebGL init failure must degrade to a working 2D
-editor + export (not crash the app) — that fallback exists as of 2026-07-19.
+editor + export (not crash the app) — that fallback exists as of 2026-07-19, and covers
+three.min.js itself failing to load (the only top-level THREE reference is typeof-guarded;
+keep it that way).
 
 ## Gotchas (see AUDIT-2026-07-19.md)
 
