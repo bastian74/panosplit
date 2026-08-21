@@ -22,8 +22,10 @@ keep it that way).
 
 - Dropping an image OUTSIDE the dropzone must not navigate the page away (it used to, destroying
   layout work) — the whole-page drop handler now loads the image instead.
-- Export can exceed browser canvas limits on huge panos — `toBlob` null is counted/reported, not
-  silently hung.
+- Export can exceed browser canvas limits on huge panos — `toBlob` null (Chrome) and thrown
+  errors (Firefox/Safari) are both counted/reported, not silently hung. Crops are encoded
+  sequentially — one canvas alive at a time — to cap peak memory; keep it that way. Transparent
+  PNG input is flattened onto white before the JPEG encode.
 - Deferred: wrap-mode padding is asymmetric near image edges; no ICC/color-profile handling; a
   display-proxy bitmap would smooth editing of 200 MP+ panos; a printable "hang sheet" from the
   existing tape-measure data is the top feature idea.

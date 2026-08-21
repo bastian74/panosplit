@@ -1831,8 +1831,10 @@ function downloadFrames(){
   if(!panoImg||!frames.length){showToast('No frames');return;}
   showToast('Preparing ZIP…');
   var zip=new JSZip();
-  var pending=frames.length, failed=0;
-  frames.forEach(function(f,idx){
+  // Crop math for ALL frames runs synchronously up front (cheap pure math), so
+  // the export always reflects the layout at click time even though the canvas
+  // work below now spans multiple async steps.
+  var jobs=frames.map(function(f,idx){
     // ── Output must exactly match the physical output ratio ──
     // The source crop (f.w × f.h) may not perfectly match due to rounding or
     // template geometry, so we enforce the ratio against the crop width and
@@ -1872,31 +1874,61 @@ function downloadFrames(){
     cropX=Math.max(0,Math.min(panoImg.width-cropW,cropX));
     cropY=Math.max(0,Math.min(panoImg.height-cropH,cropY));
 
-    var c=document.createElement('canvas');
-    c.width=cropW; c.height=cropH;
-    c.getContext('2d').drawImage(panoImg,cropX,cropY,cropW,cropH,0,0,cropW,cropH);
-
     var wIn=f.printW%1<0.05?Math.round(f.printW):f.printW.toFixed(1);
     var hIn=f.printH%1<0.05?Math.round(f.printH):f.printH.toFixed(1);
     var physW=frameType==='wrap'?f.printW+2*wrapDepth:f.printW;
     var dpiActual=Math.round(cropW/physW);
     var name='print_'+String(idx+1).padStart(2,'0')+'_'+wIn+'x'+hIn+'in_'+cropW+'x'+cropH+'px_'+dpiActual+'dpi.jpg';
-
-    c.toBlob(function(blob){
-      // toBlob returns null when the crop exceeds the browser's canvas limits
-      if(blob) zip.file(name,blob); else failed++;
-      if(--pending===0){
-        if(failed===frames.length){showToast('Export failed — crops exceed browser canvas limits');return;}
-        zip.generateAsync({type:'blob',compression:'STORE'}).then(function(zblob){
-          var url=URL.createObjectURL(zblob), a=document.createElement('a');
-          a.href=url; a.download='panosplit_prints.zip';
-          a.click();
-          setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
-          showToast(failed?((frames.length-failed)+' prints in ZIP — '+failed+' failed (too large for browser)'):(frames.length+' prints downloaded as ZIP'));
-        }).catch(function(){showToast('ZIP creation failed');});
-      }
-    },'image/jpeg',0.97);
+    return {x:cropX,y:cropY,w:cropW,h:cropH,name:name};
   });
+
+  var total=jobs.length, failed=0;
+  // Frames are encoded ONE AT A TIME (create canvas → toBlob → release → next)
+  // instead of allocating every full-res crop canvas up front: each backing
+  // store is ~4 bytes/px, so N simultaneous crops of a huge pano could OOM the
+  // tab. Sequential processing caps the spike at one crop, with no quality or
+  // UX change.
+  function doJob(i){
+    if(i>=total){ finishZip(); return; }
+    var j=jobs[i], c;
+    // Oversized canvases fail differently per browser: Chrome's toBlob returns
+    // a null blob (handled in the callback), but Firefox throws
+    // NS_ERROR_FAILURE from drawImage/toBlob and Safari can throw too. A throw
+    // must count this frame as failed and continue — not silently abort the
+    // remaining frames and the ZIP.
+    try{
+      c=document.createElement('canvas');
+      c.width=j.w; c.height=j.h;
+      var ctx=c.getContext('2d');
+      // JPEG has no alpha channel: composite transparent PNG input onto white
+      // (print-paper expectation) instead of the encoder's default black.
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,j.w,j.h);
+      ctx.drawImage(panoImg,j.x,j.y,j.w,j.h,0,0,j.w,j.h);
+      c.toBlob(function(blob){
+        // toBlob returns null when the crop exceeds the browser's canvas limits
+        if(blob) zip.file(j.name,blob); else failed++;
+        // Release this crop's backing store deterministically before the next
+        // frame — GC of canvas memory can lag behind allocation.
+        c.width=1; c.height=1;
+        doJob(i+1);
+      },'image/jpeg',0.97);
+    }catch(err){
+      failed++;
+      if(c){c.width=1;c.height=1;}
+      doJob(i+1); // sync recursion is fine: depth is bounded by the frame count
+    }
+  }
+  function finishZip(){
+    if(failed===total){showToast('Export failed — crops exceed browser canvas limits');return;}
+    zip.generateAsync({type:'blob',compression:'STORE'}).then(function(zblob){
+      var url=URL.createObjectURL(zblob), a=document.createElement('a');
+      a.href=url; a.download='panosplit_prints.zip';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+      showToast(failed?((total-failed)+' prints in ZIP — '+failed+' failed (too large for browser)'):(total+' prints downloaded as ZIP'));
+    }).catch(function(){showToast('ZIP creation failed');});
+  }
+  doJob(0);
 }
 
 
