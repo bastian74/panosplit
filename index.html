@@ -570,11 +570,14 @@ window.addEventListener('drop',function(e){
 });
 
 var appInited=false; // editor + 3D scene are created once; re-uploads reuse them
+var loadGen=0;       // ignore stale decode callbacks when uploads overlap
 function loadFile(file){
+  var gen=++loadGen;
   var url=URL.createObjectURL(file);
   var image=new Image();
   image.onload=function(){
     URL.revokeObjectURL(url);
+    if(gen!==loadGen) return; // a newer upload superseded this one
     if(!image.width||!image.height){alert('Image has no pixel dimensions.');return;}
     panoImg=image;
     document.getElementById('upload-zone').classList.add('hidden');
@@ -606,7 +609,7 @@ function loadFile(file){
       syncShiftSliderRange();
     });
   };
-  image.onerror=function(){URL.revokeObjectURL(url);alert('Could not load image.');};
+  image.onerror=function(){URL.revokeObjectURL(url);if(gen!==loadGen)return;alert('Could not load image.');};
   image.src=url;
 }
 
@@ -743,7 +746,16 @@ function applyTemplate(){
 
 function clampF(f){
   if(!panoImg) return;
-  f.w=Math.max(4,Math.min(panoImg.width,f.w)); f.h=Math.max(4,Math.min(panoImg.height,f.h));
+  f.w=Math.max(4,f.w); f.h=Math.max(4,f.h);
+  // A crop larger than the image can't be extracted: shrink it to fit while
+  // preserving its ratio, and keep the physical print size in sync so the
+  // editor, 3D preview, and export all describe the same region.
+  var s=Math.min(panoImg.width/f.w, panoImg.height/f.h);
+  if(s<1){
+    f.w=Math.max(4,Math.floor(f.w*s)); f.h=Math.max(4,Math.floor(f.h*s));
+    var dpi=panoDPI();
+    f.printW=f.w/dpi; f.printH=f.h/dpi;
+  }
   f.x=Math.max(0,Math.min(panoImg.width-f.w,f.x));
   f.y=Math.max(0,Math.min(panoImg.height-f.h,f.y));
 }
@@ -1657,7 +1669,7 @@ function rebuildFurniture(){
 // REBUILD 3D PRINTS
 // ═══════════════════════════════════════════════
 function rebuild3D(){
-  if(!scene||!renderer||!panoImg||!frames.length) return;
+  if(!scene||!renderer||!panoImg) return; // frames may be empty — still clear old meshes below
   for(var mi=0;mi<pmeshes.length;mi++){
     var g=pmeshes[mi];
     g.traverse(function(c){
@@ -1823,8 +1835,12 @@ function downloadFrames(){
       cropW=Math.round(cropH/asp);
       cropX=Math.round(midX-cropW/2);
     }
-    cropW=Math.max(1,Math.min(panoImg.width,cropW));
-    cropH=Math.max(1,cropH);
+    // Width clamp must preserve the ratio too: shrink height along with it
+    if(cropW>panoImg.width){
+      cropW=panoImg.width;
+      cropH=Math.min(panoImg.height,Math.round(cropW*asp));
+    }
+    cropW=Math.max(1,cropW); cropH=Math.max(1,cropH);
     cropX=Math.max(0,Math.min(panoImg.width-cropW,cropX));
     cropY=Math.max(0,Math.min(panoImg.height-cropH,cropY));
 
