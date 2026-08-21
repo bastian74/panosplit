@@ -1831,9 +1831,16 @@ function downloadFrames(){
   if(!panoImg||!frames.length){showToast('No frames');return;}
   showToast('Preparing ZIP…');
   var zip=new JSZip();
+  // Pin the source image for the whole export: the async encode steps below
+  // must keep drawing from the image that was loaded at click time, or a new
+  // panorama dropped mid-export would supply pixels for the remaining frames
+  // at the OLD image's crop coordinates. (loadFile creates a fresh Image per
+  // upload, so a re-upload swaps the global and this captured one stays intact.)
+  var img=panoImg;
   // Crop math for ALL frames runs synchronously up front (cheap pure math), so
-  // the export always reflects the layout at click time even though the canvas
-  // work below now spans multiple async steps.
+  // together with the pinned source image the export always reflects the
+  // layout AND pixels at click time even though the canvas work below spans
+  // multiple async steps.
   var jobs=frames.map(function(f,idx){
     // ── Output must exactly match the physical output ratio ──
     // The source crop (f.w × f.h) may not perfectly match due to rounding or
@@ -1903,7 +1910,7 @@ function downloadFrames(){
       // JPEG has no alpha channel: composite transparent PNG input onto white
       // (print-paper expectation) instead of the encoder's default black.
       ctx.fillStyle='#fff'; ctx.fillRect(0,0,j.w,j.h);
-      ctx.drawImage(panoImg,j.x,j.y,j.w,j.h,0,0,j.w,j.h);
+      ctx.drawImage(img,j.x,j.y,j.w,j.h,0,0,j.w,j.h);
       c.toBlob(function(blob){
         // toBlob returns null when the crop exceeds the browser's canvas limits
         if(blob) zip.file(j.name,blob); else failed++;
